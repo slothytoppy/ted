@@ -2,22 +2,30 @@ package main
 
 import "./keyboard"
 import "core:fmt"
+import "core:log"
 import "core:os"
 import "core:strconv"
 import "core:strings"
 import "core:sync/chan"
 import "core:thread"
+import "core:time"
 import "cursor"
 import "deps/ncurses/"
+import "editor_buffer"
 
 Thread_Data :: struct {
 	channel: chan.Chan(rune),
+}
+
+Editor_State :: struct {
+	buffer: editor_buffer.Buffer,
 }
 
 read_stdin :: proc(th: ^thread.Thread) {
 	ncurses.raw()
 	ncurses.noecho()
 	ncurses.cbreak()
+	ncurses.keypad(ncurses.stdscr, true)
 	Data := (cast(^Thread_Data)th.data)
 	channel := Data.channel
 	data: [1]byte
@@ -30,11 +38,9 @@ read_stdin :: proc(th: ^thread.Thread) {
 }
 
 main :: proc() {
-	ncurses.raw()
-	ncurses.noecho()
-	ncurses.cbreak()
-	win := ncurses.initscr()
-	ncurses.keypad(win, true)
+	fd, error := os.open("log", os.O_RDWR | os.O_CREATE | os.O_TRUNC, 0o611)
+	logger := log.create_file_logger(fd)
+	context.logger = logger
 	th := thread.create(read_stdin)
 	channel, err := chan.create_unbuffered(chan.Chan(rune), context.allocator)
 	th.data = &Thread_Data{channel}
@@ -42,28 +48,73 @@ main :: proc() {
 	if err != nil {
 		panic("failed to create buffered channel")
 	}
+
+	state: Editor_State
+	cli_args := os.args[1:]
+	if len(cli_args) <= 0 {
+		panic("file to edit was not given")
+	}
+	if !os.exists(cli_args[0]) {
+		panic(fmt.tprint("file:", cli_args[0], "does not exist"))
+	}
+	win := ncurses.initscr()
+	data, _ := os.read_entire_file_from_filename(cli_args[0])
+	data_arr := strings.split(string(data), "\n")
+	y, x := ncurses.getmaxyx(win)
+	state.buffer.data = make([dynamic]strings.Builder, 0, x)
+	for data, i in data_arr {
+		if i32(i) < y {
+			append(&state.buffer.data, strings.Builder{})
+			strings.write_string(&state.buffer.data[i], data)
+		} else {
+			break
+		}
+	}
+
+	str: [dynamic]string
+	for builder in state.buffer.data {
+		if builder.buf == nil {
+			append(&str, "\n")
+		} else {
+			append(&str, string(builder.buf[:]))
+		}
+		log.info(string(builder.buf[:]))
+	}
+
+	for data, i in str {
+		ncurses.printw("%s", data)
+		ncurses.move(i32(i + 1), 0)
+	}
+	ncurses.refresh()
 	for {
-		if data, ok := chan.recv(channel); ok == true {
-			data := cast(rune)data
-			if ncurses.keyname(i32(data)) == "^Q" {
+
+		data := keyboard.get_char(channel)
+
+		if data != nil {
+			if ncurses.keyname(i32(rune(data.(rune)))) == "^Q" {
 				ncurses.endwin()
 				return
 			}
-			if ncurses.keyname(i32(data)) == "^I" {
+			if ncurses.keyname(i32(rune(data.(rune)))) == "^I" {
+				/*
 				ncurses.endwin()
 				fmt.print(#location(), "not yet implemented: tab key")
 				os.exit(1)
+        */
 			}
-			if ncurses.keyname(i32(data)) == "^J" {
-				//ncurses.endwin()
-				//fmt.print(#location(), "not yet implemented: enter key")
-				//os.exit(1)
+			if ncurses.keyname(i32(rune(data.(rune)))) == "^J" {
+				/*
+				ncurses.endwin()
+				fmt.print(#location(), "not yet implemented: enter key")
+				os.exit(1)
+        */
 			}
+			ncurses.refresh()
+		}
 
-			if keyboard.is_shift(data) {
-				ncurses.printw("shift detected")
-			}
-			switch data {
+
+		/*
+         switch data {
 			// 127 is DELETE
 			case ncurses.KEY_BACKSPACE:
 				y, x := ncurses.getyx(win)
@@ -83,9 +134,10 @@ main :: proc() {
 			case ncurses.KEY_DOWN:
 				ncurses.printw("caught arrow_key down\n")
 			case:
-				fmt.print(ncurses.keyname(i32(data)))
+			//fmt.print(ncurses.keyname(i32(data)))
 			}
-			/*
+      */
+		/*
 			if keyboard.is_ctrl(data) {
 				ncurses.printw(
 					strings.clone_to_cstring(
@@ -95,8 +147,6 @@ main :: proc() {
 				)
 			}
       */
-			ncurses.refresh()
-		}
 	}
 	ncurses.endwin()
 	return

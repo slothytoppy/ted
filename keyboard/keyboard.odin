@@ -2,6 +2,7 @@ package keyboard
 
 import "../deps/ncurses"
 import "core:fmt"
+import "core:sync/chan"
 import "core:testing"
 
 is_ctrl :: #force_inline proc(key: rune) -> bool {
@@ -49,4 +50,9 @@ is_shift_test :: proc(t: ^testing.T) {
 		return
 	}
 	testing.fail_now(t, "failed to recognize left shift as shift")
+}
+
+get_char :: proc(channel: chan.Chan(rune)) -> (key: Maybe(rune), ok: bool) #optional_ok {
+	key = chan.try_recv(channel) or_return
+	return key, true
 }
