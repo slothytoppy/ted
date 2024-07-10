@@ -23,7 +23,7 @@ is_ctrl_test :: proc(t: ^testing.T) {
 }
 
 is_readable_character :: #force_inline proc(key: rune) -> bool {
-	if !is_ctrl(key) && !is_shift(key) {
+	if !is_ctrl(key) {
 		return true
 	}
 	return false
@@ -32,27 +32,12 @@ is_readable_character :: #force_inline proc(key: rune) -> bool {
 @(test)
 is_readable_character_test :: proc(t: ^testing.T) {
 	data := 'Q'
-	if is_ctrl(data) || is_shift(data) {
+	if is_ctrl(data) {
 		testing.fail_now(t, fmt.tprint("data:", data, "is not a printable character"))
 	}
 }
 
-// not sure if thers a use for this
-is_shift :: #force_inline proc(key: rune) -> bool {
-	if key == ncurses.KEY_SLEFT || key == ncurses.KEY_SRIGHT {
-		return true
-	}
-	return false
-}
-
-@(test)
-is_shift_test :: proc(t: ^testing.T) {
-	if is_shift(ncurses.KEY_SLEFT) && !is_shift('q') {
-		return
-	}
-	testing.fail_now(t, "failed to recognize left shift as shift")
-}
-
+// receives a char from the input thread
 get_char :: proc(channel: chan.Chan(rune)) -> (key: Maybe(rune), ok: bool) #optional_ok {
 	key = chan.try_recv(channel) or_return
 	return key, true

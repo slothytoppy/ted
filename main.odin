@@ -23,8 +23,9 @@ Editor_Mode :: enum {
 }
 
 Editor_State :: struct {
-	buffer: editor_buffer.Buffer,
-	mode:   Editor_Mode,
+	buffer:  editor_buffer.Buffer,
+	mode:    Editor_Mode,
+	running: bool,
 }
 
 read_stdin :: proc(th: ^thread.Thread) {
@@ -65,13 +66,15 @@ main :: proc() {
 	ncurses.keypad(ncurses.stdscr, true)
 	cur := cursor.new()
 	y, x := ncurses.getmaxyx(ncurses.stdscr)
+	cur.row = 0
+	cur.col = 0
 	cur.max_col = u16(y)
 	cur.max_row = u16(x)
 	data, _ := os.read_entire_file_from_filename(cli_args[0])
 	data_arr := strings.split(string(data), "\n")
-	/*
-	y, x := ncurses.getmaxyx(win)
 	state.buffer.data = make([dynamic]strings.Builder, 0, x)
+	state.mode = .normal
+	state.running = true
 	for data, i in data_arr {
 		if i32(i) < y {
 			append(&state.buffer.data, strings.Builder{})
@@ -88,24 +91,43 @@ main :: proc() {
 		} else {
 			append(&str, string(builder.buf[:]))
 		}
-		log.info(string(builder.buf[:]))
 	}
 
 	for data, i in str {
 		ncurses.printw("%s", data)
 		ncurses.move(i32(i + 1), 0)
 	}
-	ncurses.refresh()
-  */
+	cursor.move(&cur, .reset)
 	for {
 
 		data := keyboard.get_char(channel)
-
 		if data != nil {
-			if ncurses.keyname(i32(rune(data.(rune)))) == "^Q" {
+			#partial switch state.mode {
+			case .normal:
+				handle_normal(&state, data, &cur)
+			case .insert:
+				handle_insert(&state, data, &cur)
+				log.info(cur)
+			}
+			ncurses.refresh()
+			if state.running == false {
 				ncurses.endwin()
 				return
 			}
+		}
+	}
+	ncurses.endwin()
+	return
+}
+
+handle_normal :: proc(state: ^Editor_State, data: Maybe(rune), cur: ^cursor.Cursor) {
+	if state.mode == .normal {
+		if data != nil {
+			if ncurses.keyname(i32(rune(data.(rune)))) == "^Q" {
+				state.running = false
+				return
+			}
+			/*
 			if ncurses.keyname(i32(rune(data.(rune)))) == "^I" {
 				/*
 				ncurses.endwin()
@@ -120,64 +142,65 @@ main :: proc() {
 				os.exit(1)
         */
 			}
-			switch data {
+      */
+			switch data.(rune) {
 			case ncurses.KEY_LEFT:
-				cursor.move(&cur, .left)
+				fallthrough
+			case 'a':
+				cursor.move(cur, .left)
 			case ncurses.KEY_RIGHT:
-				cursor.move(&cur, .right)
+				fallthrough
+			case 'd':
+				cursor.move(cur, .right)
 			case ncurses.KEY_UP:
-				cursor.move(&cur, .up)
+				fallthrough
+			case 'w':
+				cursor.move(cur, .up)
 			case ncurses.KEY_DOWN:
-				cursor.move(&cur, .down)
+				fallthrough
+			case 's':
+				cursor.move(cur, .down)
 			case 'j':
-				cursor.move_to_line_start(&cur, cur.col)
+				cursor.move_to_line_start(cur, cur.col)
 			case 'k':
-				cursor.move_to_line_end(&cur, cur.col)
+				cursor.move_to_line_end(cur, cur.col)
+			case 'i':
+				state.mode = .insert
+				log.info(state.mode)
 			case ncurses.KEY_RESIZE:
-				y, x = ncurses.getmaxyx(ncurses.stdscr)
+				y, x := ncurses.getmaxyx(ncurses.stdscr)
 				cur.max_col = u16(y)
 				cur.max_row = u16(x)
 			}
-			ncurses.move(auto_cast cur.col, auto_cast cur.row)
-			log.info(cur)
-			ncurses.refresh()
 		}
-
-		/*
-         switch data {
-			// 127 is DELETE
-			case ncurses.KEY_BACKSPACE:
-				y, x := ncurses.getyx(win)
-				ncurses.move(y, x - 1)
-				ncurses.printw(" ")
-				ncurses.move(y, x - 2)
-			case cast(rune)27:
-				ncurses.printw("caught escape")
-			case ncurses.KEY_ENTER:
-				ncurses.printw("caught enter")
-			case ncurses.KEY_LEFT:
-				ncurses.printw("caught arrow_key left\n")
-			case ncurses.KEY_RIGHT:
-				ncurses.printw("caught arrow_key right\n")
-			case ncurses.KEY_UP:
-				ncurses.printw("caught arrow_key up\n")
-			case ncurses.KEY_DOWN:
-				ncurses.printw("caught arrow_key down\n")
-			case:
-			//fmt.print(ncurses.keyname(i32(data)))
-			}
-      */
-		/*
-			if keyboard.is_ctrl(data) {
-				ncurses.printw(
-					strings.clone_to_cstring(
-						fmt.tprint("ctrl+", data, "\n"),
-						context.temp_allocator,
-					),
-				)
-			}
-      */
 	}
-	ncurses.endwin()
-	return
+}
+
+handle_insert :: proc(state: ^Editor_State, data: Maybe(rune), cur: ^cursor.Cursor) {
+	if state.mode == .insert {
+		if data != nil {
+			key := ncurses.keyname(i32(data.(rune)))
+			if key == "KEY_LEFT" {
+				cursor.move(cur, .left)
+			} else if key == "KEY_RIGHT" {
+				cursor.move(cur, .right)
+			} else if key == "KEY_UP" {
+				cursor.move(cur, .up)
+			} else if key == "KEY_DOWN" {
+				cursor.move(cur, .down)
+			} else if key == "KEY_RESIZE" {
+				y, x := ncurses.getmaxyx(ncurses.stdscr)
+				cur.max_col = u16(y)
+				cur.max_row = u16(x)
+			} else if key == "KEY_BACKSPACE" {
+				ncurses.printw(" ")
+				cursor.move(cur, .left)
+			} else if key == "^C" {
+				state.mode = .normal
+			} else {
+				ncurses.printw("%c", data)
+				cursor.move(cur, .right)
+			}
+		}
+	}
 }

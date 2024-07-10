@@ -1,7 +1,7 @@
 package cursor
 
+import "../deps/ncurses"
 import "core:log"
-import "core:testing"
 
 Error :: enum {
 	none,
@@ -18,6 +18,11 @@ Cursor_Command :: enum {
 	right,
 	up,
 	down,
+	column_top,
+	column_end,
+	row_start,
+	row_end,
+	reset,
 }
 
 new :: proc() -> Cursor {
@@ -55,7 +60,7 @@ move_down :: proc(cursor: ^Cursor, amount: u16) -> Error {
 move :: proc(cursor: ^Cursor, command: Cursor_Command) -> (err: Error) {
 	switch (command) {
 	case .left:
-		if cursor.row - 1 > 0 {
+		if cursor.row > 0 {
 			cursor.row -= 1
 		}
 	case .right:
@@ -70,16 +75,34 @@ move :: proc(cursor: ^Cursor, command: Cursor_Command) -> (err: Error) {
 		if cursor.col + 1 < cursor.max_col {
 			cursor.col += 1
 		}
+	case .row_start:
+		cursor.row = 0
+	case .row_end:
+		cursor.row = cursor.max_row - 1
+	case .column_top:
+		cursor.col = 0
+	case .column_end:
+		cursor.col = cursor.max_col - 1
+	case .reset:
+		cursor.row = 0
+		cursor.col = 0
 	}
+	ncurses.move(auto_cast cursor.col, auto_cast cursor.row)
+	log.info(cursor.row, cursor.col)
 	return .none
 }
 
+move_to :: proc(cursor: ^Cursor, x, y: u16) {
+	if x < 0 || x > cursor.max_row || y < 0 || y > cursor.max_row {
+		return
+	}
+	ncurses.move(auto_cast x, auto_cast y)
+}
+
 move_to_line_start :: proc(cursor: ^Cursor, col: u16) {
-	cursor.row = 0
-	cursor.col = col
+	move_to(cursor, cursor.col, 0)
 }
 
 move_to_line_end :: proc(cursor: ^Cursor, col: u16) {
-	cursor.row = cursor.max_row - 1
-	cursor.col = col
+	move_to(cursor, cursor.col, cursor.max_row - 1)
 }
