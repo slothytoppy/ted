@@ -1,5 +1,6 @@
 package keyboard
 
+import "../cursor"
 import "../deps/ncurses"
 import "core:fmt"
 import "core:sync/chan"

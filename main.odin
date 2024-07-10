@@ -4,11 +4,9 @@ import "./keyboard"
 import "core:fmt"
 import "core:log"
 import "core:os"
-import "core:strconv"
 import "core:strings"
 import "core:sync/chan"
 import "core:thread"
-import "core:time"
 import "cursor"
 import "deps/ncurses/"
 import "editor_buffer"
@@ -17,18 +15,21 @@ Thread_Data :: struct {
 	channel: chan.Chan(rune),
 }
 
+Editor_Mode :: enum {
+	normal,
+	insert,
+	search,
+	command,
+}
+
 Editor_State :: struct {
 	buffer: editor_buffer.Buffer,
+	mode:   Editor_Mode,
 }
 
 read_stdin :: proc(th: ^thread.Thread) {
-	ncurses.raw()
-	ncurses.noecho()
-	ncurses.cbreak()
-	ncurses.keypad(ncurses.stdscr, true)
 	Data := (cast(^Thread_Data)th.data)
 	channel := Data.channel
-	data: [1]byte
 	for {
 		ok := chan.send(channel, cast(rune)ncurses.getch())
 		if !ok {
@@ -58,8 +59,17 @@ main :: proc() {
 		panic(fmt.tprint("file:", cli_args[0], "does not exist"))
 	}
 	win := ncurses.initscr()
+	ncurses.raw()
+	ncurses.noecho()
+	ncurses.cbreak()
+	ncurses.keypad(ncurses.stdscr, true)
+	cur := cursor.new()
+	y, x := ncurses.getmaxyx(ncurses.stdscr)
+	cur.max_col = u16(y)
+	cur.max_row = u16(x)
 	data, _ := os.read_entire_file_from_filename(cli_args[0])
 	data_arr := strings.split(string(data), "\n")
+	/*
 	y, x := ncurses.getmaxyx(win)
 	state.buffer.data = make([dynamic]strings.Builder, 0, x)
 	for data, i in data_arr {
@@ -86,6 +96,7 @@ main :: proc() {
 		ncurses.move(i32(i + 1), 0)
 	}
 	ncurses.refresh()
+  */
 	for {
 
 		data := keyboard.get_char(channel)
@@ -109,9 +120,28 @@ main :: proc() {
 				os.exit(1)
         */
 			}
+			switch data {
+			case ncurses.KEY_LEFT:
+				cursor.move(&cur, .left)
+			case ncurses.KEY_RIGHT:
+				cursor.move(&cur, .right)
+			case ncurses.KEY_UP:
+				cursor.move(&cur, .up)
+			case ncurses.KEY_DOWN:
+				cursor.move(&cur, .down)
+			case 'j':
+				cursor.move_to_line_start(&cur, cur.col)
+			case 'k':
+				cursor.move_to_line_end(&cur, cur.col)
+			case ncurses.KEY_RESIZE:
+				y, x = ncurses.getmaxyx(ncurses.stdscr)
+				cur.max_col = u16(y)
+				cur.max_row = u16(x)
+			}
+			ncurses.move(auto_cast cur.col, auto_cast cur.row)
+			log.info(cur)
 			ncurses.refresh()
 		}
-
 
 		/*
          switch data {
