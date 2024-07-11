@@ -8,24 +8,11 @@ import "core:strings"
 import "core:sync/chan"
 import "core:thread"
 import "cursor"
-import "deps/ncurses/"
-import "editor_buffer"
+import ncurses "deps/ncurses/src"
+import "editor"
 
 Thread_Data :: struct {
 	channel: chan.Chan(rune),
-}
-
-Editor_Mode :: enum {
-	normal,
-	insert,
-	search,
-	command,
-}
-
-Editor_State :: struct {
-	buffer:  editor_buffer.Buffer,
-	mode:    Editor_Mode,
-	running: bool,
 }
 
 read_stdin :: proc(th: ^thread.Thread) {
@@ -51,7 +38,7 @@ main :: proc() {
 		panic("failed to create buffered channel")
 	}
 
-	state: Editor_State
+	state: editor.Editor_State
 	cli_args := os.args[1:]
 	if len(cli_args) <= 0 {
 		panic("file to edit was not given")
@@ -93,11 +80,13 @@ main :: proc() {
 		}
 	}
 
+	/*
 	for data, i in str {
 		ncurses.printw("%s", data)
 		ncurses.move(i32(i + 1), 0)
 	}
 	cursor.move(&cur, .reset)
+  */
 	for {
 
 		data := keyboard.get_char(channel)
@@ -114,13 +103,14 @@ main :: proc() {
 				ncurses.endwin()
 				return
 			}
+			ncurses.printw("%s", ncurses.keyname(i32(data.(rune))))
 		}
 	}
 	ncurses.endwin()
 	return
 }
 
-handle_normal :: proc(state: ^Editor_State, data: Maybe(rune), cur: ^cursor.Cursor) {
+handle_normal :: proc(state: ^editor.Editor_State, data: Maybe(rune), cur: ^cursor.Cursor) {
 	if state.mode == .normal {
 		if data != nil {
 			if ncurses.keyname(i32(rune(data.(rune)))) == "^Q" {
@@ -176,7 +166,7 @@ handle_normal :: proc(state: ^Editor_State, data: Maybe(rune), cur: ^cursor.Curs
 	}
 }
 
-handle_insert :: proc(state: ^Editor_State, data: Maybe(rune), cur: ^cursor.Cursor) {
+handle_insert :: proc(state: ^editor.Editor_State, data: Maybe(rune), cur: ^cursor.Cursor) {
 	if state.mode == .insert {
 		if data != nil {
 			key := ncurses.keyname(i32(data.(rune)))

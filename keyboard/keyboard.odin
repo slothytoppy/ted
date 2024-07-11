@@ -1,7 +1,7 @@
 package keyboard
 
 import "../cursor"
-import "../deps/ncurses"
+import ncurses "../deps/ncurses/src"
 import "core:fmt"
 import "core:sync/chan"
 import "core:testing"

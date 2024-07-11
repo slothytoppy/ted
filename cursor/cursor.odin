@@ -1,6 +1,6 @@
 package cursor
 
-import "../deps/ncurses"
+import ncurses "../deps/ncurses/src"
 import "core:log"
 
 Error :: enum {
@@ -11,6 +11,7 @@ Error :: enum {
 Cursor :: struct {
 	row, col:         u16,
 	max_row, max_col: u16,
+	visibility:       uint, // 0 for hidden, 1 for normal, 2 for high visiblity
 }
 
 Cursor_Command :: enum {
