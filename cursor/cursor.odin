@@ -11,7 +11,8 @@ Error :: enum {
 Cursor :: struct {
 	row, col:         u16,
 	max_row, max_col: u16,
-	visibility:       uint, // 0 for hidden, 1 for normal, 2 for high visiblity
+	// 0 for hidden, 1 for normal, 2 for high visiblity
+	visibility:       uint,
 }
 
 Cursor_Command :: enum {
