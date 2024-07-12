@@ -26,8 +26,9 @@ Cursor_Command :: enum {
 	reset,
 }
 
-new :: proc() -> Cursor {
-	return {}
+// uses y, x because im using ncurses that is y, x
+new :: proc(#any_int max_y, max_x: u16) -> Cursor {
+	return {max_row = max_x, max_col = max_y}
 }
 
 @(private)
