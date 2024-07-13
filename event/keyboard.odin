@@ -1,7 +1,6 @@
 package event
 
 import ncurses "../deps/ncurses/src"
-import "base:runtime"
 import "core:sync/chan"
 import "core:thread"
 

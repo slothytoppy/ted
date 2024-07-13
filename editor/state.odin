@@ -16,15 +16,31 @@ Editor_State :: struct {
 	running: bool,
 	file:    string,
 	vp:      viewport.Viewport,
-	cursor:  cursor.Cursor,
+	cur:     cursor.Cursor,
+	win:     ^ncurses.Window,
 }
 
 new :: proc() -> (state: Editor_State) {
+	state.win = ncurses.initscr()
 	state.running = true
 	state.mode = .normal
+	y, x := ncurses.getmaxyx(state.win)
+	state.cur = {
+		max_row = cast(u16)x,
+		max_col = cast(u16)y,
+	}
 	state.vp = default_viewport()
-	state.buffer.data = nil
+	state.buffer = nil
 	return state
+}
+
+getmaxxy :: proc() -> cursor.Cursor {
+	y, x := ncurses.getmaxyx(ncurses.stdscr)
+	cur := cursor.Cursor {
+		max_row = cast(u16)x,
+		max_col = cast(u16)y,
+	}
+	return cur
 }
 
 set_editor_buffer :: proc(state: ^Editor_State, buffer: Buffer) {
@@ -32,8 +48,7 @@ set_editor_buffer :: proc(state: ^Editor_State, buffer: Buffer) {
 }
 
 default_viewport :: proc() -> viewport.Viewport {
-	y, x := ncurses.getmaxyx(ncurses.stdscr)
-	return viewport.new(endx = x, endy = y, buffer = {})
+	return viewport.new(buffer = {})
 }
 
 set_viewport :: proc(state: ^Editor_State, vp: viewport.Viewport) {
@@ -50,60 +65,79 @@ handle_mode :: proc(state: ^Editor_State, data: rune) {
 }
 
 @(private)
+handle_normal_mode :: proc(editor_state: ^Editor_State, data: rune) {
+	key := ncurses.keyname(i32(data))
+	if key == "^Q" {
+		editor_state.running = false
+		return
+	}
+	switch (key) {
+	case "a", "h", "KEY_LEFT":
+		cursor.move(&editor_state.cur, .left)
+	case "d", "l", "KEY_RIGHT":
+		cursor.move(&editor_state.cur, .right)
+	case "w", "k", "KEY_UP":
+		cursor.move(&editor_state.cur, .up)
+	case "s", "j", "KEY_DOWN":
+		cursor.move(&editor_state.cur, .down)
+	case "g":
+		cursor.move(&editor_state.cur, .column_end)
+	case "G":
+		cursor.move(&editor_state.cur, .column_top)
+	case "i":
+		editor_state.mode = .insert
+	case "KEY_RESIZE":
+		y, x := ncurses.getmaxyx(ncurses.stdscr)
+		editor_state.cur.max_col = u16(y)
+		editor_state.cur.max_row = u16(x)
+	case "KEY_BACKSPACE":
+		cursor.move(&editor_state.cur, .left)
+	}
+	// TODO: handle ^I and ^J, ^I is tab and ^J is enter 
+	viewport.render(&editor_state.vp)
+	return
+}
+
+@(private)
 handle_insert_mode :: proc(editor_state: ^Editor_State, data: rune) {
 	key := ncurses.keyname(i32(data))
-	if key == "KEY_LEFT" {
-		cursor.move(&editor_state.cursor, .left)
-	} else if key == "KEY_RIGHT" {
-		cursor.move(&editor_state.cursor, .right)
-	} else if key == "KEY_UP" {
-		cursor.move(&editor_state.cursor, .up)
-	} else if key == "KEY_DOWN" {
-		cursor.move(&editor_state.cursor, .down)
-	} else if key == "KEY_RESIZE" {
+	switch key {
+	case "KEY_LEFT":
+		cursor.move(&editor_state.cur, .left)
+	case "KEY_RIGHT":
+		cursor.move(&editor_state.cur, .right)
+	case "KEY_UP":
+		cursor.move(&editor_state.cur, .up)
+	case "KEY_DOWN":
+		cursor.move(&editor_state.cur, .down)
+	case "KEY_RESIZE":
 		y, x := ncurses.getmaxyx(ncurses.stdscr)
-		editor_state.cursor.max_col = u16(y)
-		editor_state.cursor.max_row = u16(x)
-	} else if key == "KEY_BACKSPACE" {
-		cursor.move(&editor_state.cursor, .left)
-		ncurses.delch()
-	} else if key == "^C" || key == "^[" {
+		editor_state.cur.max_col = u16(y)
+		editor_state.cur.max_row = u16(x)
+	case "KEY_BACKSPACE":
+		assign_at(
+			&editor_state.buffer[editor_state.cur.col].buf,
+			cast(int)editor_state.cur.row - 1,
+			' ',
+		)
+		cursor.move(&editor_state.cur, .left)
+	case "^C", "^[":
 		editor_state.mode = .normal
-	} else {
-		ncurses.printw("%c", data)
-		log.info(key)
-		cursor.move(&editor_state.cursor, .right)
+	case:
+		assign_at(
+			&editor_state.buffer[editor_state.cur.col].buf,
+			cast(int)editor_state.cur.row,
+			u8(data),
+		)
+		log.info(data)
+		cursor.move(&editor_state.cur, .right)
+		ncurses.refresh()
 	}
 	viewport.render(&editor_state.vp)
 }
 
-@(private)
-handle_normal_mode :: proc(editor_state: ^Editor_State, data: rune) {
-	if ncurses.keyname(i32(rune(data))) == "^Q" {
-		editor_state.running = false
-		return
-	}
-	// TODO: handle ^I and ^J, ^I is tab and ^J is enter 
-	switch data {
-	case 'a', 'h', ncurses.KEY_LEFT:
-		cursor.move(&editor_state.cursor, .left)
-	case 'd', 'l', ncurses.KEY_RIGHT:
-		cursor.move(&editor_state.cursor, .right)
-	case 's', 'j', ncurses.KEY_DOWN:
-		cursor.move(&editor_state.cursor, .down)
-	case 'w', 'k', ncurses.KEY_UP:
-		cursor.move(&editor_state.cursor, .up)
-	case 'g':
-		cursor.move(&editor_state.cursor, .column_end)
-	case 'G':
-		cursor.move(&editor_state.cursor, .column_top)
-	case 'i':
-		editor_state.mode = .insert
-	case ncurses.KEY_RESIZE:
-		y, x := ncurses.getmaxyx(ncurses.stdscr)
-		editor_state.cursor.max_col = u16(y)
-		editor_state.cursor.max_row = u16(x)
-	}
-	viewport.render(&editor_state.vp)
-	return
+render_screen :: proc(editor: ^Editor_State, data: rune) {
+	handle_mode(editor, data)
+	ncurses.move(cast(i32)editor.cur.col, cast(i32)editor.cur.row)
+	ncurses.refresh()
 }

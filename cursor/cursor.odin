@@ -1,8 +1,5 @@
 package cursor
 
-import ncurses "../deps/ncurses/src"
-import "core:log"
-
 Error :: enum {
 	none,
 	invalid,
@@ -71,11 +68,11 @@ move :: proc(cursor: ^Cursor, command: Cursor_Command) -> (err: Error) {
 			cursor.row += 1
 		}
 	case .up:
-		if cursor.col - 1 < cursor.max_col && cursor.col > 0 {
+		if cursor.col > 0 && cursor.col < cursor.max_col {
 			cursor.col -= 1
 		}
 	case .down:
-		if cursor.col + 1 < cursor.max_col {
+		if cursor.col < cursor.max_col {
 			cursor.col += 1
 		}
 	case .row_start:
@@ -90,8 +87,7 @@ move :: proc(cursor: ^Cursor, command: Cursor_Command) -> (err: Error) {
 		cursor.row = 0
 		cursor.col = 0
 	}
-	ncurses.move(auto_cast cursor.col, auto_cast cursor.row)
-	log.info(cursor.row, cursor.col)
+	assert(cursor.col != max(u16))
 	return .none
 }
 
@@ -99,7 +95,8 @@ move_to :: proc(cursor: ^Cursor, x, y: u16) {
 	if x < 0 || x > cursor.max_row || y < 0 || y > cursor.max_row {
 		return
 	}
-	ncurses.move(auto_cast x, auto_cast y)
+	cursor.col = y
+	cursor.row = x
 }
 
 move_to_line_start :: proc(cursor: ^Cursor, col: u16) {

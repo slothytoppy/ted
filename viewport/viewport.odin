@@ -1,52 +1,34 @@
 package viewport
 
-import "../cursor"
 import ncurses "../deps/ncurses/src"
+import "core:strings"
 
 Viewport :: struct {
-	using cur: cursor.Cursor,
-	buffer:    []string,
+	max_col, max_row: u16,
+	buffer:           ^[dynamic]strings.Builder,
 }
 
-new :: proc(
-	startx: i32 = 0,
-	starty: i32 = 0,
-	#any_int endx, endy: i32,
-	buffer: []string,
-) -> Viewport {
-	return Viewport {
-		row = cast(u16)startx,
-		col = cast(u16)starty,
-		max_row = cast(u16)endx,
-		max_col = cast(u16)endy,
-		buffer = buffer,
-	}
+new :: proc(buffer: ^[dynamic]strings.Builder) -> Viewport {
+	y, x := ncurses.getmaxyx(ncurses.stdscr)
+	return Viewport{max_row = cast(u16)x, max_col = cast(u16)y, buffer = buffer}
 }
 
 Direction :: enum {
+	none,
 	up,
 	down,
 }
 
-scroll :: proc(vp: ^Viewport, direction: Direction, amount: int) {
-	switch direction {
-	case .down:
-		vp.col += 1
-	case .up:
-		vp.col -= 1
-	}
-	return
-}
-
 render :: proc(vp: ^Viewport) {
-	ncurses.move(i32(vp.col), i32(vp.row))
-	for buf, i in vp.buffer {
-		i := cast(u16)i
-		if vp.col + i > vp.max_col {
+	ncurses.move(0, 0)
+	for i in 0 ..< vp.max_col {
+		if i >= vp.max_col {
 			break
 		}
-		ncurses.printw("%s", buf)
-		ncurses.move(cast(i32)vp.col + i32(i), 0)
+		min := 0
+		max := clamp(min, len(vp.buffer[i].buf[:]), cast(int)vp.max_row)
+		ncurses.printw("%s", vp.buffer[i].buf[:max])
+		ncurses.move(i32(i) + 1, 0)
 	}
 	ncurses.refresh()
 }
