@@ -32,15 +32,15 @@ is_shift :: proc(key: rune) -> bool {
 @(private)
 keyboard_channel: chan.Chan(rune)
 
-// creates a thread with a channel of type T to read from ncurses
-poll :: proc($T: typeid) {
+// creates a thread with a channel of type rune to read characters from ncurses, manages an internal channel that isnt exposed to the user
+poll :: proc() {
 	poll_char :: proc(th: ^thread.Thread) {
 		channel := (cast(^chan.Chan(rune))th.data)
 		for {
 			_ = chan.try_send(channel^, cast(rune)ncurses.getch())
 		}
 	}
-	keyboard_channel, _ = chan.create_unbuffered(chan.Chan(T), context.allocator)
+	keyboard_channel, _ = chan.create_unbuffered(chan.Chan(rune), context.allocator)
 	th := thread.create(poll_char)
 	th.data = &keyboard_channel
 	thread.start(th)
