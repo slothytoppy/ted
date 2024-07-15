@@ -1,6 +1,6 @@
 package viewport
 
-import ncurses "../deps/ncurses/src"
+import ncurses "../deps/ncurses/"
 import "core:strings"
 
 Viewport :: struct {

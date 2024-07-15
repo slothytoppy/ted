@@ -1,9 +1,10 @@
 package editor
 
 import "../cursor"
-import ncurses "../deps/ncurses/src"
+import ncurses "../deps/ncurses/"
 import "../viewport"
 import "core:log"
+import "core:strings"
 
 Mode :: enum {
 	normal,
@@ -103,6 +104,8 @@ handle_normal_mode :: proc(editor_state: ^Editor_State) {
 			editor_state.cur.max_row = u16(x)
 		case "KEY_BACKSPACE":
 			cursor.move(&editor_state.cur, .left)
+		case "KEY_ENTER":
+			cursor.move(&editor_state.cur, .down)
 		}
 	}
 	// TODO: handle ^I and ^J, ^I is tab and ^J is enter 
@@ -128,13 +131,27 @@ handle_insert_mode :: proc(editor_state: ^Editor_State) {
 			editor_state.cur.max_col = u16(y)
 			editor_state.cur.max_row = u16(x)
 		case "KEY_BACKSPACE":
-			assign_at(
-				&editor_state.buffer[editor_state.cur.col].buf,
-				cast(int)editor_state.cur.row - 1,
-				' ',
+			// backspace key
+			if is_empty_buffer(editor_state.buffer, editor_state.cur.col) {
+				ordered_remove(&editor_state.buffer, cast(int)editor_state.cur.col)
+				cursor.move(&editor_state.cur, .up)
+				log.info(string(editor_state.buffer[editor_state.cur.col].buf[:]))
+			} else {
+				append_at(&editor_state.buffer, editor_state.cur.col, string_to_dyn_arr(" "))
+				cursor.move(&editor_state.cur, .left)
+				log.info(buffer_index_to_string(editor_state.buffer, editor_state.cur.col))
+			}
+		case "^J":
+			// ENTER key
+			buf: [dynamic]byte = {'\n'}
+			inject_at(
+				&editor_state.buffer,
+				cast(int)editor_state.cur.col + 1,
+				strings.Builder{buf},
 			)
-			cursor.move(&editor_state.cur, .left)
+			cursor.move(&editor_state.cur, .down)
 		case "^C", "^[":
+			// CTRL+C and ESCAPE
 			editor_state.mode = .normal
 		case:
 			assign_at(
@@ -142,7 +159,7 @@ handle_insert_mode :: proc(editor_state: ^Editor_State) {
 				cast(int)editor_state.cur.row,
 				u8(editor_state.data.(rune)),
 			)
-			log.info(editor_state.data.(rune))
+			log.info(key)
 			cursor.move(&editor_state.cur, .right)
 			ncurses.refresh()
 		}
