@@ -1,34 +1,30 @@
 package viewport
 
-import ncurses "../deps/ncurses/"
+import "../deps/ncurses"
 import "core:strings"
 
 Viewport :: struct {
-	max_col, max_row: u16,
-	buffer:           ^[dynamic]strings.Builder,
+	data: []byte, // view into some array of bytes
+	pos:  [2]i32,
 }
 
-new :: proc(buffer: ^[dynamic]strings.Builder) -> Viewport {
-	y, x := ncurses.getmaxyx(ncurses.stdscr)
-	return Viewport{max_row = cast(u16)x, max_col = cast(u16)y, buffer = buffer}
+set_buffer :: proc(vp: ^Viewport, buffer: []byte) {
+	vp.data = buffer
 }
 
-Direction :: enum {
-	none,
-	up,
-	down,
+set_max_pos :: proc(vp: ^Viewport, max_x, max_y: i32) {
+	vp.pos = [2]i32{max_x, max_y}
 }
 
-render :: proc(vp: ^Viewport) {
+// doesnt account for flowing off the screen
+render :: proc(vp: Viewport) {
 	ncurses.move(0, 0)
-	for i in 0 ..< vp.max_col {
-		if i >= vp.max_col {
+	for s, i in strings.split(string(vp.data), "\n") {
+		if i > cast(int)vp.pos.y {
 			break
 		}
-		min := 0
-		max := clamp(min, len(vp.buffer[i].buf[:]), cast(int)vp.max_row)
-		ncurses.printw("%s", vp.buffer[i].buf[:max])
-		ncurses.move(i32(i) + 1, 0)
+		ncurses.printw("%s", s)
+		ncurses.move(cast(i32)i + 1, 0)
 	}
 	ncurses.refresh()
 }

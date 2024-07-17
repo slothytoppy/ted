@@ -1,108 +1,42 @@
 package cursor
 
-Error :: enum {
-	none,
-	invalid,
-}
-
-Cursor :: struct {
-	row, col:         u16,
-	max_row, max_col: u16,
-	// 0 for hidden, 1 for normal, 2 for high visiblity
-	visibility:       uint,
-}
-
-Cursor_Command :: enum {
-	left,
-	right,
+Event :: enum {
 	up,
 	down,
-	column_top,
-	column_end,
-	row_start,
-	row_end,
-	reset,
+	left,
+	right,
 }
 
-// uses y, x because im using ncurses that is y, x
-new :: proc(#any_int max_y, max_x: u16) -> Cursor {
-	return {max_row = max_x, max_col = max_y}
+Cursor :: #type [2]i32
+
+new :: proc(x, y: i32) -> Cursor {
+	return {x, y}
 }
 
-@(private)
-move_left :: proc(cursor: ^Cursor, amount: u16) -> Error {
-	cursor.row -= amount
-	cursor.row = clamp(cursor.row, 0, cursor.max_row)
-	return .none
+// doesnt account for any max_x or max_y, only prevents x and y from becoming negative
+move_cursor_to :: proc(old_pos: ^Cursor, new_pos: Cursor) {
+	old_pos := old_pos
+	old_pos^ = new_pos.xy
 }
 
-@(private)
-move_right :: proc(cursor: ^Cursor, amount: u16) -> Error {
-	cursor.row += amount
-	cursor.row = clamp(cursor.row, 0, cursor.max_row)
-	return .none
-}
-
-@(private)
-move_up :: proc(cursor: ^Cursor, amount: u16) -> Error {
-	cursor.col -= amount
-	cursor.col = clamp(cursor.col, 0, cursor.max_col)
-	return .none
-}
-
-@(private)
-move_down :: proc(cursor: ^Cursor, amount: u16) -> Error {
-	cursor.col += amount
-	cursor.col = clamp(cursor.col, 0, cursor.max_col)
-	return .none
-}
-
-move :: proc(cursor: ^Cursor, command: Cursor_Command) -> (err: Error) {
-	switch (command) {
-	case .left:
-		if cursor.row > 0 {
-			cursor.row -= 1
-		}
-	case .right:
-		if cursor.row + 1 < cursor.max_row {
-			cursor.row += 1
-		}
+// doesnt account for any max_x or max_y, only prevents x and y from becoming negative
+move_cursor_event :: proc(cursor: ^Cursor, ev: Event) {
+	switch ev {
 	case .up:
-		if cursor.col > 0 && cursor.col < cursor.max_col {
-			cursor.col -= 1
+		if cursor.y > 0 {
+			cursor.y -= 1
 		}
 	case .down:
-		if cursor.col < cursor.max_col {
-			cursor.col += 1
+		if cursor.y > 0 {
+			cursor.y += 1
 		}
-	case .row_start:
-		cursor.row = 0
-	case .row_end:
-		cursor.row = cursor.max_row - 1
-	case .column_top:
-		cursor.col = 0
-	case .column_end:
-		cursor.col = cursor.max_col - 1
-	case .reset:
-		cursor.row = 0
-		cursor.col = 0
+	case .left:
+		if cursor.x > 0 {
+			cursor.x -= 1
+		}
+	case .right:
+		if cursor.x > 0 {
+			cursor.x += 1
+		}
 	}
-	assert(cursor.col != max(u16))
-	return .none
-}
-
-move_to :: proc(cursor: ^Cursor, x, y: u16) {
-	if x < 0 || x > cursor.max_row || y < 0 || y > cursor.max_row {
-		return
-	}
-	cursor.col = y
-	cursor.row = x
-}
-
-move_to_line_start :: proc(cursor: ^Cursor, col: u16) {
-	move_to(cursor, cursor.col, 0)
-}
-
-move_to_line_end :: proc(cursor: ^Cursor, col: u16) {
-	move_to(cursor, cursor.col, cursor.max_row - 1)
 }
