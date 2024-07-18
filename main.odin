@@ -31,17 +31,13 @@ main :: proc() {
 		buffer = editor.load_buffer_from_file(args_info.file),
 	}
 	state.pos = {0, 0, 40, 40}
-	state.viewport = {state.buffer[:], [4]i32{0, 0, 3, 4}}
+	state.viewport = {state.buffer[:], [2]i32{3, 4}}
 	events.init_keyboard_poll()
 	editor.render(state)
 	state.keymap = events.init_keymap()
-	for k, v in state.keymap {
-		log.info(k, v)
-	}
 	for {
 		ev := events.poll_keypress()
 		if ev.key != "" {
-			log.info(ev.key)
 			if ev.key == "control+q" {
 				break
 			}

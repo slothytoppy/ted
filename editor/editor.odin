@@ -10,7 +10,7 @@ import "core:os"
 Buffer :: #type [dynamic]byte
 
 Editor :: struct {
-	pos:      [4]i32,
+	pos:      cursor.Cursor,
 	viewport: viewport.Viewport,
 	buffer:   Buffer,
 	keymap:   events.Keymap,
@@ -51,9 +51,6 @@ handle_keymap :: proc(ed: ^Editor, event: events.Event) {
 	} else if event.key == "KEY_RIGHT" {
 		cursor.move_cursor_event(&ed.pos, .right)
 	}
-	if ok {
-		log.info("key:", event.key)
-	}
 }
 
 @(private)
@@ -70,4 +67,6 @@ check_vec4_collision :: proc(vec4: [4]i32) -> bool {
 render :: proc(ed: Editor) {
 	ed := ed
 	viewport.render(ed.viewport)
+	ncurses.move(ed.pos.cur_y, ed.pos.cur_x)
+	ncurses.refresh()
 }
