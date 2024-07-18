@@ -53,19 +53,10 @@ handle_keymap :: proc(ed: ^Editor, event: events.Event) {
 	}
 }
 
-@(private)
-check_vec4_collision :: proc(vec4: [4]i32) -> bool {
-	if vec4.x > vec4.w || vec4.y > vec4.z {
-		return true
-	}
-	return false
-}
-
 /* 
    for things to be called everytime the editor needs to rerender,
  */
 render :: proc(ed: Editor) {
-	ed := ed
 	viewport.render(ed.viewport)
 	ncurses.move(ed.pos.cur_y, ed.pos.cur_x)
 	ncurses.refresh()

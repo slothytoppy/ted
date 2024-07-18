@@ -20,7 +20,6 @@ set_max_pos :: proc(vp: ^Viewport, max_x, max_y: i32) {
 
 // doesnt account for flowing off the screen
 render :: proc(vp: Viewport) {
-	ncurses.curs_set(0)
 	ncurses.move(0, 0)
 	lines_count: i32 = 0
 	line_len: i32 = 0
@@ -30,19 +29,17 @@ render :: proc(vp: Viewport) {
 		// \n at the end of the line
 		if vp.data[line_len] == '\n' {
 			line_len += 1
-			// \n at the start of the line
-			for b in vp.data[start_idx:line_len] {
-				ncurses.addch(cast(u32)b)
-			}
+			// stupid thing i have to do because cstrings are nil terminated
+			cstr := strings.clone_to_cstring(
+				string(vp.data[start_idx:line_len]),
+				context.temp_allocator,
+			)
+			ncurses.printw("%s", cstr)
 			ncurses.move(lines_count + 1, 0)
 			log.info(start_idx, line_len)
-			log.fatal(string(vp.data[start_idx:line_len]))
 			lines_count += 1
 			// modified at the end because its from last line length to the next lines length
 			start_idx = line_len
 		}
 	}
-
-	ncurses.curs_set(1)
-	ncurses.refresh()
 }

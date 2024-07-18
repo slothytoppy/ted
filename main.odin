@@ -1,6 +1,5 @@
 package main
 
-import "./cursor"
 import "./editor"
 import "core:flags"
 import "core:fmt"
