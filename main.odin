@@ -15,13 +15,11 @@ Args_Info :: struct {
 }
 
 set_file_logger :: proc(handle: os.Handle) -> log.Logger {
-	handle := handle
-	switch handle {
-	case 0:
-		//	handle, _ := os.open("/dev/null") // makes it so that if the log file is not givenit does not write to stdin and logs go nowhere
-		return log.create_file_logger(1)
+	fd := handle
+	if handle == 0 {
+		fd, _ = os.open("/dev/null") // makes it so that if the log file is not givenit does not write to stdin and logs go nowhere
 	}
-	return log.create_file_logger(handle)
+	return log.create_file_logger(fd)
 }
 
 main :: proc() {
@@ -32,17 +30,22 @@ main :: proc() {
 	state = {
 		buffer = editor.load_buffer_from_file(args_info.file),
 	}
-	state.viewport = {state.buffer[:], [2]i32{0, 40}}
-	cursor.move_cursor_event(&state.pos, .up)
+	state.pos = {0, 0, 40, 40}
+	state.viewport = {state.buffer[:], [4]i32{0, 0, 3, 4}}
 	events.init_keyboard_poll()
 	editor.render(state)
+	state.keymap = events.init_keymap()
+	for k, v in state.keymap {
+		log.info(k, v)
+	}
 	for {
 		ev := events.poll_keypress()
 		if ev.key != "" {
-			if ev.key == "ctrl+q" {
+			log.info(ev.key)
+			if ev.key == "control+q" {
 				break
 			}
-			log.info(state.viewport)
+			editor.handle_keymap(&state, ev)
 			editor.render(state)
 		}
 	}

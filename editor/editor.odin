@@ -1,28 +1,34 @@
 package editor
 
+import "../cursor"
 import "../deps/ncurses/"
 import "../viewport"
+import "./events"
+import "core:log"
 import "core:os"
 
 Buffer :: #type [dynamic]byte
 
 Editor :: struct {
-	pos:      [2]i32,
+	pos:      [4]i32,
 	viewport: viewport.Viewport,
 	buffer:   Buffer,
+	keymap:   events.Keymap,
 }
 
 init_editor :: proc() -> Editor {
 	ncurses.initscr()
 	ncurses.noecho()
 	ncurses.raw()
+	ncurses.keypad(ncurses.stdscr, true)
 	return {}
 }
 
+// maybe just calling endwin is fine here?
 deinit_editor :: proc() {
-	ncurses.endwin()
 	ncurses.echo()
 	ncurses.noraw()
+	ncurses.endwin()
 }
 
 load_buffer_from_file :: proc(file: string) -> (buffer: Buffer) {
@@ -34,6 +40,34 @@ load_buffer_from_file :: proc(file: string) -> (buffer: Buffer) {
 	return buffer
 }
 
+handle_keymap :: proc(ed: ^Editor, event: events.Event) {
+	val, ok := ed.keymap[event.key]
+	if event.key == "KEY_UP" {
+		cursor.move_cursor_event(&ed.pos, .up)
+	} else if event.key == "KEY_DOWN" {
+		cursor.move_cursor_event(&ed.pos, .down)
+	} else if event.key == "KEY_LEFT" {
+		cursor.move_cursor_event(&ed.pos, .left)
+	} else if event.key == "KEY_RIGHT" {
+		cursor.move_cursor_event(&ed.pos, .right)
+	}
+	if ok {
+		log.info("key:", event.key)
+	}
+}
+
+@(private)
+check_vec4_collision :: proc(vec4: [4]i32) -> bool {
+	if vec4.x > vec4.w || vec4.y > vec4.z {
+		return true
+	}
+	return false
+}
+
+/* 
+   for things to be called everytime the editor needs to rerender,
+ */
 render :: proc(ed: Editor) {
+	ed := ed
 	viewport.render(ed.viewport)
 }
