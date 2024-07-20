@@ -1,12 +1,10 @@
 package keyboard
 
 import "../../deps/ncurses"
-import "core:log"
 import "core:strings"
 import "core:sync/chan"
 import "core:thread"
 import "core:unicode"
-import "core:unicode/utf8"
 
 Event :: struct {
 	key:                  string,
@@ -18,6 +16,7 @@ Keymap :: map[string]Event
 
 @(private)
 keyboard_channel_type :: chan.Chan(Maybe(string))
+@(private)
 keyboard_channel: keyboard_channel_type
 
 init_keyboard_poll :: proc() {
@@ -34,25 +33,40 @@ init_keyboard_poll :: proc() {
 poll_keypress :: proc() -> (ev: Event) {
 	maybe_key, _ := chan.try_recv(keyboard_channel)
 	if maybe_key != nil {
-		ev.key = maybe_key.?
-		if ev.key[0] == '^' {
-			ev.is_control = true
-			ev.key = strings.concatenate({"control+", strings.to_lower(ev.key[1:])})
-		} else {
+		key := maybe_key.?
+		switch key[0] {
+		case '^':
+			if len(key) > 1 {
+				switch key[1] {
+				case 'J':
+					ev.key = "enter"
+				case 'Q':
+					ev.is_control = true
+				}
+				ev.key = strings.concatenate({"control+", strings.to_lower(key[1:])})
+			}
+		case:
+			/*
 			for r in ev.key {
 				if !unicode.is_upper(r) {
 					return ev
 				}
 			}
 			ev.is_shift = true
-			ev.key = strings.concatenate({"shift+", strings.to_lower(ev.key[1:])})
+			ev.key = strings.concatenate({"shift+", strings.to_lower(ev.key)})
+      */
+			ev.key = key
 		}
 	}
 	return ev
 }
 
-init_keymap :: proc() -> Keymap {
+init_keymap :: proc(strs: ..string) -> Keymap {
 	keymap := make(Keymap)
+	for s in strs {
+		map_insert(&keymap, s, Event{key = s, is_control = true, is_shift = false})
+	}
+	/*
 	map_insert(&keymap, "control+c", Event{key = "control+c", is_control = true, is_shift = false})
 	map_insert(&keymap, "control+q", Event{key = "control+q", is_control = true, is_shift = false})
 	map_insert(&keymap, "shift+a", Event{key = "shift+a", is_control = false, is_shift = true})
@@ -64,5 +78,6 @@ init_keymap :: proc() -> Keymap {
 	)
 	map_insert(&keymap, "KEY_UP", Event{key = "KEY_UP", is_control = false, is_shift = false})
 	map_insert(&keymap, "KEY_DOWN", Event{key = "KEY_DOWN", is_control = false, is_shift = false})
+  */
 	return keymap
 }

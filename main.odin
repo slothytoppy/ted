@@ -2,10 +2,8 @@ package main
 
 import "./editor"
 import "core:flags"
-import "core:fmt"
 import "core:log"
 import "core:os"
-import ncurses "deps/ncurses/"
 import "editor/events"
 
 Args_Info :: struct {
@@ -16,32 +14,37 @@ Args_Info :: struct {
 set_file_logger :: proc(handle: os.Handle) -> log.Logger {
 	fd := handle
 	if handle == 0 {
-		fd, _ = os.open("/dev/null") // makes it so that if the log file is not givenit does not write to stdin and logs go nowhere
+		fd, _ = os.open("/dev/null") // makes it so that if the log file is not given it does not write to stdin and logs go nowhere
 	}
 	return log.create_file_logger(fd)
 }
 
 main :: proc() {
-	args_info: Args_Info
-	flags.parse_or_exit(&args_info, os.args)
+	args_info: editor.Args_Info
+	editor.parse_cli_arguments(&args_info)
 	context.logger = set_file_logger(args_info.log_file)
 	state := editor.init_editor()
-	state = {
-		buffer = editor.load_buffer_from_file(args_info.file),
-	}
-	state.pos = {0, 0, 40, 40}
-	state.viewport = {state.buffer[:], [2]i32{3, 4}}
+	log.info(state.pos)
+	state.buffer = editor.load_buffer_from_file(args_info.file)
+	state.viewport = {{state.pos.max_x, state.pos.max_y, 0, 0}}
+	editor.render(&state, {})
 	events.init_keyboard_poll()
-	editor.render(state)
-	state.keymap = events.init_keymap()
+	state.keymap = events.init_keymap(
+		"KEY_UP",
+		"KEY_DOWN",
+		"KEY_LEFT",
+		"KEY_RIGHT",
+		"control+c",
+		"control+q",
+		"shift+a",
+	)
+	assert(state.keymap != nil)
 	for {
 		ev := events.poll_keypress()
 		if ev.key != "" {
-			if ev.key == "control+q" {
-				break
-			}
 			editor.handle_keymap(&state, ev)
-			editor.render(state)
+			log.info(ev)
+			editor.render(&state, ev)
 		}
 	}
 	editor.deinit_editor()

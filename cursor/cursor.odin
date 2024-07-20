@@ -64,13 +64,20 @@ move_cursor_event :: proc(cursor: ^Cursor, ev: Event) {
 cursor_test :: proc(t: ^testing.T) {
 	cur := new(0, 0, 5, 10) // cursor starts at 0,0 with a max width and height of 5 and 10
 	move_cursor_event(&cur, .down)
-	if cur.max_y != 1 {
-		log.info(cur)
+	if cur.cur_y != 1 {
 		testing.fail(t)
 	}
 	move_cursor_event(&cur, .up)
-	if cur.max_y != 0 {
-		log.info(cur)
+	if cur.cur_y != 0 {
 		testing.fail(t)
 	}
+	move_cursor_event(&cur, .right)
+	if cur.cur_x != 1 {
+		testing.fail(t)
+	}
+	move_cursor_event(&cur, .left)
+	if cur.cur_x != 0 {
+		testing.fail(t)
+	}
+	log.info(cur)
 }

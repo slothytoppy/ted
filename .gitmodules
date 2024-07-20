@@ -1,3 +1,0 @@
-[submodule "deps/ncurses"]
-	path = deps/ncurses
-	url = git@github.com:RaphGL/Ncurses.odin.git
