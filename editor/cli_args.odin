@@ -9,21 +9,21 @@ Args_Info :: struct {
 	log_file: os.Handle `args:"pos=1,file=cwt,perms=0644,name=log_file" usage:"optional file for logging"`,
 }
 
-parse_cli_arguments :: proc(model: ^Args_Info) {
+parse_cli_arguments :: proc(arg_info: ^Args_Info) {
 	// ignores first cli argument which is path_to_exe
 	args: []string = os.args
 	// what flags.parse_or_exit does but i have to do this myself
 	if len(os.args) > 1 {
 		args = args[1:]
 	}
-	error := flags.parse(model, args)
+	error := flags.parse(arg_info, args)
 	switch specific_error in error {
 	case flags.Parse_Error:
 		fmt.println("parsing error")
 	case flags.Open_File_Error:
 		fmt.println("open file error")
 	case flags.Validation_Error:
-		if model.file == "" {
+		if arg_info.file == "" {
 			fmt.println("empty")
 		}
 		fmt.println("validation error")

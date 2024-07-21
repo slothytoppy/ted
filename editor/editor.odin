@@ -75,16 +75,16 @@ default_key_maps :: proc() -> events.Keymap {
 	)
 }
 
-handle_keymap :: proc(ed: ^Editor, event: events.Event) {
+handle_keymap :: proc(editor: ^Editor, event: events.Event) {
 	switch event.key {
 	case "KEY_UP":
-		cursor.move_cursor_event(&ed.pos, .up)
+		cursor.move_cursor_event(&editor.pos, .up)
 	case "KEY_DOWN":
-		cursor.move_cursor_event(&ed.pos, .down)
+		cursor.move_cursor_event(&editor.pos, .down)
 	case "KEY_LEFT":
-		cursor.move_cursor_event(&ed.pos, .left)
+		cursor.move_cursor_event(&editor.pos, .left)
 	case "KEY_RIGHT":
-		cursor.move_cursor_event(&ed.pos, .right)
+		cursor.move_cursor_event(&editor.pos, .right)
 	case "control+q":
 		deinit_editor()
 		os.exit(0)
@@ -94,15 +94,14 @@ handle_keymap :: proc(ed: ^Editor, event: events.Event) {
 /* 
 for things to be called everytime the editor needs to rerender,
  */
-render :: proc(ed: ^Editor, event: events.Event) {
-	if ed.pos.cur_y == 0 && event.key == "KEY_UP" {
-		if ed.viewport.pos.scroll_y > 0 {
-			ed.viewport.pos.scroll_y -= 1
-		}
-	} else if ed.pos.cur_y == ed.pos.max_y && event.key == "KEY_DOWN" {
-		ed.viewport.pos.scroll_y += 1
+render :: proc(editor: ^Editor, event: events.Event) {
+	command: viewport.Command
+	if editor.pos.cur_y == 0 && event.key == "KEY_UP" {
+		command = .up
+	} else if editor.pos.cur_y == editor.pos.max_y && event.key == "KEY_DOWN" {
+		command = .down
 	}
-	viewport.render(ed.viewport, ed.buffer[:])
-	ncurses.move(ed.pos.cur_y, ed.pos.cur_x)
+	viewport.render(&editor.viewport, editor.buffer[:], command)
+	ncurses.move(editor.pos.cur_y, editor.pos.cur_x)
 	ncurses.refresh()
 }

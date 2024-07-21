@@ -66,18 +66,5 @@ init_keymap :: proc(strs: ..string) -> Keymap {
 	for s in strs {
 		map_insert(&keymap, s, Event{key = s, is_control = true, is_shift = false})
 	}
-	/*
-	map_insert(&keymap, "control+c", Event{key = "control+c", is_control = true, is_shift = false})
-	map_insert(&keymap, "control+q", Event{key = "control+q", is_control = true, is_shift = false})
-	map_insert(&keymap, "shift+a", Event{key = "shift+a", is_control = false, is_shift = true})
-	map_insert(&keymap, "KEY_LEFT", Event{key = "KEY_LEFT", is_control = false, is_shift = false})
-	map_insert(
-		&keymap,
-		"KEY_RIGHT",
-		Event{key = "KEY_RIGHT", is_control = false, is_shift = false},
-	)
-	map_insert(&keymap, "KEY_UP", Event{key = "KEY_UP", is_control = false, is_shift = false})
-	map_insert(&keymap, "KEY_DOWN", Event{key = "KEY_DOWN", is_control = false, is_shift = false})
-  */
 	return keymap
 }

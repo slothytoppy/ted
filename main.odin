@@ -26,7 +26,7 @@ main :: proc() {
 	state := editor.init_editor()
 	log.info(state.pos)
 	state.buffer = editor.load_buffer_from_file(args_info.file)
-	state.viewport = {{state.pos.max_x, state.pos.max_y, 0, 0}}
+	state.viewport = {{state.pos.max_x, state.pos.max_y, 0}}
 	editor.render(&state, {})
 	events.init_keyboard_poll()
 	state.keymap = events.init_keymap(
@@ -43,7 +43,6 @@ main :: proc() {
 		ev := events.poll_keypress()
 		if ev.key != "" {
 			editor.handle_keymap(&state, ev)
-			log.info(ev)
 			editor.render(&state, ev)
 		}
 	}
