@@ -58,7 +58,6 @@ split :: proc(data: []byte, delim: byte) -> (buf: [][]byte) {
 scroll_up :: proc(viewport: Viewport) -> (vp: Viewport) {
 	vp = viewport
 	if viewport.scroll_y > 0 {
-		log.info("scrolled up to:", vp.scroll_y + 1, "from:", vp.scroll_y)
 		vp.scroll_y -= 1
 		return vp
 	}
@@ -68,7 +67,6 @@ scroll_up :: proc(viewport: Viewport) -> (vp: Viewport) {
 scroll_down :: proc(viewport: Viewport, #any_int lines_count: i32) -> (vp: Viewport) {
 	vp = viewport
 	if vp.scroll_y + vp.max_y < lines_count {
-		log.info("scrolled down to:", vp.scroll_y - 1, "from:", vp.scroll_y)
 		vp.scroll_y += 1
 		return vp
 	}
@@ -85,9 +83,7 @@ render :: proc(vp: ^Viewport, data: []byte) {
 	lines_count: i32 = cast(i32)len(buf)
 
 	current_line: i32 = 0
-	log.info("lines count:", len(buf))
 
-	log.info(vp.cursor)
 	if cursor.should_scroll(vp.cursor, .up) {
 		vp^ = scroll_up(vp^)
 	} else if cursor.should_scroll(vp.cursor, .down) {
@@ -99,7 +95,6 @@ render :: proc(vp: ^Viewport, data: []byte) {
 		if i > vp.scroll_y + vp.max_y {
 			break
 		}
-		log.info(i)
 		if i > cast(i32)len(buf) - 1 || i > lines_count {
 			break
 		}

@@ -18,10 +18,11 @@ new :: proc(x, y, w, h: i32) -> Cursor {
 	return {x, y, w, h}
 }
 
-// doesnt account for any max_x or max_y, only prevents x and y from becoming negative
-move_cursor_to :: proc(old_pos: ^Cursor, new_pos: Cursor) {
-	old_pos := old_pos
-	old_pos^ = new_pos
+move_cursor_to :: proc(old_pos: ^Cursor, #any_int col, row: i32) {
+	old_pos.cur_y = col
+	old_pos.cur_x = row
+	old_pos^ = check_cursor_height(old_pos^)
+	old_pos^ = check_cursor_width(old_pos^)
 }
 
 check_cursor_height :: proc(cursor: Cursor) -> Cursor {
@@ -32,10 +33,12 @@ check_cursor_height :: proc(cursor: Cursor) -> Cursor {
 	return cur
 }
 
-check_cursor_width :: proc(cursor: ^Cursor) {
-	if cursor.cur_x > cursor.max_x {
+check_cursor_width :: proc(old_cursor: Cursor) -> Cursor {
+	cursor := new(old_cursor.max_x, old_cursor.max_y, old_cursor.max_x, old_cursor.max_y)
+	if old_cursor.cur_x > old_cursor.max_x {
 		cursor.cur_x = cursor.max_x
 	}
+	return cursor
 }
 
 move_cursor_event :: proc(cursor: ^Cursor, ev: Event) {
@@ -57,7 +60,6 @@ move_cursor_event :: proc(cursor: ^Cursor, ev: Event) {
 			cursor.cur_x += 1
 		}
 	}
-	log.info("pos:", cursor)
 }
 
 should_scroll :: proc(cursor: Cursor, event: Event) -> bool {

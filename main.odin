@@ -37,12 +37,15 @@ main :: proc() {
 		"shift+a",
 	)
 	assert(state.keymap != nil)
+	editor.run(&state)
+	/*
 	for {
 		state.event = events.poll_keypress()
 		if state.event.key != "" {
-			editor.handle_keymap(&state, state.event)
+			editor.handle_keymap(state, state.event)
 			editor.render(&state)
 		}
 	}
+  */
 	editor.deinit_editor()
 }

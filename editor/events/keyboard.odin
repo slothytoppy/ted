@@ -5,13 +5,13 @@ import "core:strings"
 import "core:sync/chan"
 import "core:thread"
 
-Event :: struct {
+KeyboardEvent :: struct {
 	key:                  string,
 	is_control, is_shift: bool,
 }
 
 // mapping of strings to keyboard events
-Keymap :: map[string]Event
+Keymap :: map[string]KeyboardEvent
 
 @(private)
 keyboard_channel_type :: chan.Chan(Maybe(string))
@@ -29,7 +29,7 @@ init_keyboard_poll :: proc() {
 	thread.start(th)
 }
 
-poll_keypress :: proc() -> (ev: Event) {
+poll_keypress :: proc() -> (ev: KeyboardEvent) {
 	maybe_key, _ := chan.try_recv(keyboard_channel)
 	if maybe_key != nil {
 		key := maybe_key.?
@@ -63,7 +63,7 @@ poll_keypress :: proc() -> (ev: Event) {
 init_keymap :: proc(strs: ..string) -> Keymap {
 	keymap := make(Keymap)
 	for s in strs {
-		map_insert(&keymap, s, Event{key = s, is_control = true, is_shift = false})
+		map_insert(&keymap, s, KeyboardEvent{key = s, is_control = true, is_shift = false})
 	}
 	return keymap
 }
