@@ -24,10 +24,8 @@ main :: proc() {
 	editor.parse_cli_arguments(&args_info)
 	context.logger = set_file_logger(args_info.log_file)
 	state := editor.init_editor()
-	log.info(state.pos)
 	state.buffer = editor.load_buffer_from_file(args_info.file)
-	state.viewport = {{state.pos.max_x, state.pos.max_y, 0}}
-	editor.render(&state, {})
+	editor.render(&state)
 	events.init_keyboard_poll()
 	state.keymap = events.init_keymap(
 		"KEY_UP",
@@ -40,10 +38,10 @@ main :: proc() {
 	)
 	assert(state.keymap != nil)
 	for {
-		ev := events.poll_keypress()
-		if ev.key != "" {
-			editor.handle_keymap(&state, ev)
-			editor.render(&state, ev)
+		state.event = events.poll_keypress()
+		if state.event.key != "" {
+			editor.handle_keymap(&state, state.event)
+			editor.render(&state)
 		}
 	}
 	editor.deinit_editor()

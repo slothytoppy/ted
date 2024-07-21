@@ -60,6 +60,15 @@ move_cursor_event :: proc(cursor: ^Cursor, ev: Event) {
 	log.info("pos:", cursor)
 }
 
+should_scroll :: proc(cursor: Cursor, event: Event) -> bool {
+	if cursor.cur_y == 0 && event == .up {
+		return true
+	} else if cursor.cur_y == cursor.max_y && event == .down {
+		return true
+	}
+	return false
+}
+
 @(test)
 cursor_test :: proc(t: ^testing.T) {
 	cur := new(0, 0, 5, 10) // cursor starts at 0,0 with a max width and height of 5 and 10

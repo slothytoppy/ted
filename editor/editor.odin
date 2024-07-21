@@ -19,11 +19,11 @@ Mode :: enum {
 }
 
 Editor :: struct {
-	pos:      cursor.Cursor,
 	viewport: viewport.Viewport,
 	buffer:   Buffer,
 	keymap:   events.Keymap,
 	mode:     Mode,
+	event:    events.Event,
 }
 
 init_editor :: proc() -> Editor {
@@ -32,7 +32,15 @@ init_editor :: proc() -> Editor {
 	ncurses.raw()
 	ncurses.keypad(ncurses.stdscr, true)
 	y, x := ncurses.getmaxyx(ncurses.stdscr)
-	return {pos = {max_x = x, max_y = y}}
+	editor: Editor
+	editor.viewport.cursor = {
+		max_x = x,
+		max_y = y,
+	}
+	editor.viewport.max_y = y
+	editor.viewport.max_x = x
+	editor.viewport.scroll_y = 0
+	return editor
 }
 
 // calling just endwin seems to be fine
@@ -78,13 +86,13 @@ default_key_maps :: proc() -> events.Keymap {
 handle_keymap :: proc(editor: ^Editor, event: events.Event) {
 	switch event.key {
 	case "KEY_UP":
-		cursor.move_cursor_event(&editor.pos, .up)
+		cursor.move_cursor_event(&editor.viewport.cursor, .up)
 	case "KEY_DOWN":
-		cursor.move_cursor_event(&editor.pos, .down)
+		cursor.move_cursor_event(&editor.viewport.cursor, .down)
 	case "KEY_LEFT":
-		cursor.move_cursor_event(&editor.pos, .left)
+		cursor.move_cursor_event(&editor.viewport.cursor, .left)
 	case "KEY_RIGHT":
-		cursor.move_cursor_event(&editor.pos, .right)
+		cursor.move_cursor_event(&editor.viewport.cursor, .right)
 	case "control+q":
 		deinit_editor()
 		os.exit(0)
@@ -94,14 +102,14 @@ handle_keymap :: proc(editor: ^Editor, event: events.Event) {
 /* 
 for things to be called everytime the editor needs to rerender,
  */
-render :: proc(editor: ^Editor, event: events.Event) {
+render :: proc(editor: ^Editor) {
 	command: viewport.Command
-	if editor.pos.cur_y == 0 && event.key == "KEY_UP" {
+	if editor.event.key == "KEY_UP" {
 		command = .up
-	} else if editor.pos.cur_y == editor.pos.max_y && event.key == "KEY_DOWN" {
+	} else if editor.event.key == "KEY_DOWN" {
 		command = .down
 	}
-	viewport.render(&editor.viewport, editor.buffer[:], command)
-	ncurses.move(editor.pos.cur_y, editor.pos.cur_x)
+	viewport.render(&editor.viewport, editor.buffer[:])
+	ncurses.move(editor.viewport.cursor.cur_y, editor.viewport.cursor.cur_x)
 	ncurses.refresh()
 }

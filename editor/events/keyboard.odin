@@ -4,7 +4,6 @@ import "../../deps/ncurses"
 import "core:strings"
 import "core:sync/chan"
 import "core:thread"
-import "core:unicode"
 
 Event :: struct {
 	key:                  string,
