@@ -81,12 +81,19 @@ render :: proc(vp: ^Viewport, data: [dynamic][dynamic]byte) {
 	} else if cursor.should_scroll(vp.cursor, .down) {
 		vp^ = scroll_down(vp^, len(data))
 	}
+	cursor: i32 = 0
 	for i in 0 ..< vp.max_y {
+		i := i
+		i += vp.scroll_y
+		if i > vp.scroll_y + vp.max_y {
+			break
+		}
 		if i > cast(i32)len(data) {
 			break
 		}
 		line_len := min(cast(i32)len(data[i]), vp.max_y)
-		ncurses.mvprintw(i, 0, "%s", fmt.ctprint(string(data[i][:line_len])))
+		ncurses.mvprintw(cursor, 0, "%s", fmt.ctprint(string(data[i][:line_len])))
+		cursor += 1
 		log.info(data[i])
 	}
 	ncurses.refresh()
