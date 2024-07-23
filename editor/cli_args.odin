@@ -5,7 +5,7 @@ import "core:fmt"
 import "core:os"
 
 Args_Info :: struct {
-	file:     string `args:"pos=0,required" usage:"File for editing"`,
+	file:     string `args:"pos=0" usage:"File for editing"`,
 	log_file: os.Handle `args:"pos=1,file=cwt,perms=0644,name=log_file" usage:"optional file for logging"`,
 }
 
@@ -30,5 +30,4 @@ parse_cli_arguments :: proc(arg_info: ^Args_Info) {
 	case flags.Help_Request:
 		fmt.println("help request")
 	}
-	fmt.print(error, args)
 }
