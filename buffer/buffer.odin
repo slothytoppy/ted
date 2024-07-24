@@ -36,19 +36,28 @@ load_buffer_from_file :: proc(file: string) -> Buffer {
 			if data[last_line] == '\n' {
 				last_line += 1
 			}
-			if cast(i32)i - last_line <= 0 {
-				append(&buffer[cursor], '\n')
-			}
 			append(&buffer[cursor], ..data[last_line:i])
 			last_line = cast(i32)i
 			cursor += 1
 		}
 	}
-	for line in buffer {
-		log.info(line)
-	}
 
 	return buffer
+}
+
+write_buffer_to_file :: proc(buffer: Buffer, file: string) -> bool {
+	data: [dynamic]byte
+	defer delete(data)
+	for line in buffer {
+		append(&data, ..line[:])
+		append(&data, '\n')
+	}
+	success := os.write_entire_file(file, data[:])
+	return success
+}
+
+buffer_append_bytes_at :: proc(buffer: ^Buffer, bytes: []byte, #any_int line, offset: int) {
+	inject_at(&buffer[line], offset, ..bytes)
 }
 
 buffer_append_byte_at :: proc(buffer: ^Buffer, b: byte, #any_int line, offset: int) {

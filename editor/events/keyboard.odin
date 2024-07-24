@@ -1,9 +1,11 @@
 package keyboard
 
 import "../../deps/ncurses"
+import "core:log"
 import "core:strings"
 import "core:sync/chan"
 import "core:thread"
+import "core:unicode"
 
 KeyboardEvent :: struct {
 	key:                  string,
@@ -33,28 +35,29 @@ poll_keypress :: proc() -> (ev: KeyboardEvent) {
 	maybe_key, _ := chan.try_recv(keyboard_channel)
 	if maybe_key != nil {
 		key := maybe_key.?
-		switch key[0] {
-		case '^':
-			if len(key) > 1 {
-				switch key[1] {
-				case 'J':
-					ev.key = "enter"
-				case 'Q':
-					ev.is_control = true
-				}
+		if len(key) > 1 && key[0] == '^' && key[1] != 'J' {
+			if key[1] == 'J' {
+				ev.key = "enter"
+			} else {
 				ev.key = strings.concatenate({"control+", strings.to_lower(key[1:])})
 			}
-		case:
-			/*
-			for r in ev.key {
-				if !unicode.is_upper(r) {
-					return ev
+			log.info("found:", ev.key)
+			ev.is_control = true
+		} else {
+			bytes: []byte = transmute([]byte)ev.key
+			found_shift := false
+			for &b in bytes {
+				if b > 65 || b <= 90 {
+					b += 32
+					found_shift = true
 				}
 			}
-			ev.is_shift = true
-			ev.key = strings.concatenate({"shift+", strings.to_lower(ev.key)})
-      */
-			ev.key = key
+			if found_shift {
+				ev.key = strings.concatenate({"shift+", strings.clone_from_bytes(bytes)})
+				ev.is_shift = true
+			} else {
+				ev.key = key
+			}
 		}
 	}
 	return ev

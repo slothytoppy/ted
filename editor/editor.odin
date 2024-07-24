@@ -14,12 +14,6 @@ Mode :: enum {
 	file_viewer,
 }
 
-UpdateMsg :: struct {}
-
-Event :: union {
-	UpdateMsg,
-}
-
 Editor :: struct {
 	viewport: viewport.Viewport,
 	buffer:   buffer.Buffer,
@@ -67,7 +61,7 @@ default_key_maps :: proc() -> events.Keymap {
 	)
 }
 
-handle_keymap :: proc(editor: ^Editor, event: events.KeyboardEvent) -> ^Editor {
+handle_keymap :: proc(editor: ^Editor, event: events.KeyboardEvent) {
 	switch event.key {
 	case "KEY_UP":
 		cursor.move_cursor_event(&editor.viewport.cursor, .up)
@@ -89,25 +83,27 @@ handle_keymap :: proc(editor: ^Editor, event: events.KeyboardEvent) -> ^Editor {
 				editor.viewport.cursor.cur_x,
 			)
 		}
-	case "KEY_ENTER", "control+j":
-		inject_at(
-			&editor.buffer[editor.viewport.cursor.cur_y],
-			cast(int)editor.viewport.cursor.cur_x,
-			'\n',
-		)
-		cursor.move_cursor_event(&editor.viewport.cursor, .down)
-	case "F":
-		if editor.mode != .file_viewer {
-			editor.mode = .file_viewer
-		} else {
-			editor.mode = .normal
+	case "enter":
+		if editor.mode == .insert {
+			inject_at(
+				&editor.buffer[editor.viewport.cursor.cur_y],
+				cast(int)editor.viewport.cursor.cur_x,
+				'\n',
+			)
 		}
+		cursor.move_cursor_event(&editor.viewport.cursor, .down)
 	case "I":
 		if editor.mode == .normal {
 			editor.mode = .insert
 		}
+	case "^":
+		goto_line_start(&editor.viewport)
+	case "$":
+		goto_line_end(&editor.viewport, len(editor.buffer[editor.viewport.cursor.cur_y]))
+	case "control+s":
+		log.info("control+s")
+		buffer.write_buffer_to_file(editor.buffer, "test.odin")
 	case:
-		log.info("key=", event.key)
 		if editor.mode == .insert {
 			if event.is_control == false {
 				log.info(
@@ -116,28 +112,26 @@ handle_keymap :: proc(editor: ^Editor, event: events.KeyboardEvent) -> ^Editor {
 					"cur_col",
 					editor.viewport.cursor.cur_y,
 				)
-				buffer.buffer_append_byte_at(
+				buffer.buffer_append_bytes_at(
 					&editor.buffer,
-					event.key[0],
-					editor.viewport.cursor.cur_y,
-					editor.viewport.cursor.cur_x,
+					line = editor.viewport.cursor.cur_y,
+					offset = editor.viewport.cursor.cur_x,
+					bytes = transmute([]byte)event.key[:],
 				)
 				cursor.move_cursor_event(&editor.viewport.cursor, .right)
 			}
 		}
 	}
-	return editor
 }
 
-update :: proc(editor_state: ^Editor) -> (editor: Editor, event: Event) {
+update :: proc(editor_state: ^Editor) -> bool {
+	editor_state := editor_state
 	editor_state.event = events.poll_keypress()
-	editor = editor_state^
 	if editor_state.event.key != "" {
-		editor = handle_keymap(editor_state, editor.event)^
-		event = UpdateMsg{}
-		return editor, event
+		handle_keymap(editor_state, editor_state.event)
+		return true
 	}
-	return editor_state^, {}
+	return false
 }
 
 /* 
@@ -145,12 +139,8 @@ for things to be called everytime the editor needs to rerender,
  */
 render :: proc(editor: ^Editor) {
 	command: viewport.Command
-	if editor.event.key == "KEY_UP" {
-		command = .up
-	} else if editor.event.key == "KEY_DOWN" {
-		command = .down
-	}
 	viewport.render(&editor.viewport, editor.buffer)
+	log.debug("moving to", editor.viewport.cursor.cur_x, editor.viewport.cursor.cur_y)
 	ncurses.move(editor.viewport.cursor.cur_y, editor.viewport.cursor.cur_x)
 	ncurses.refresh()
 }
@@ -169,6 +159,11 @@ run :: proc() {
 		"control+q",
 		"shift+a",
 		"KEY_ENTER",
+		"o",
+		"O",
+		"^",
+		"$",
+		"control+s",
 	)
 	assert(editor.keymap != nil)
 	context.logger = set_file_logger(cli_args.log_file)
@@ -177,12 +172,12 @@ run :: proc() {
 	} else {
 		editor.buffer = load_buffer_from_file(cli_args.file)
 	}
-	event: Event
 	render(&editor)
+	event: bool
 	for {
-		editor, event = update(&editor)
-		switch _ in event {
-		case UpdateMsg:
+		event = update(&editor)
+		if event == true {
+			log.info(editor.event.key)
 			log.info("rendering a frame")
 			render(&editor)
 		}
@@ -196,4 +191,15 @@ set_file_logger :: proc(handle: os.Handle) -> log.Logger {
 		fd, _ = os.open("/dev/null") // makes it so that if the log file is not given it does not write to stdin and logs go nowhere
 	}
 	return log.create_file_logger(fd)
+}
+
+goto_line_start :: proc(vp: ^viewport.Viewport) {
+	log.info("line start")
+	vp.cursor.cur_x = 0
+}
+
+goto_line_end :: proc(vp: ^viewport.Viewport, #any_int line_length: i32) {
+	current_line := vp.cursor.cur_y
+	log.info("line len:", line_length)
+	cursor.move_cursor_to(&vp.cursor, current_line, line_length - 1)
 }
