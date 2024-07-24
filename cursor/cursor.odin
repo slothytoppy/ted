@@ -26,19 +26,19 @@ move_cursor_to :: proc(old_pos: ^Cursor, #any_int col, row: i32) {
 }
 
 check_cursor_height :: proc(cursor: Cursor) -> Cursor {
-	cur := new(cursor.max_x, cursor.max_y, cursor.max_x, cursor.max_y)
+	cur := new_clone(cursor)
 	if cursor.cur_y > cursor.max_y {
 		cur.cur_y = cur.max_y
 	}
-	return cur
+	return cur^
 }
 
 check_cursor_width :: proc(old_cursor: Cursor) -> Cursor {
-	cursor := new(old_cursor.max_x, old_cursor.max_y, old_cursor.max_x, old_cursor.max_y)
+	cursor := new_clone(old_cursor)
 	if old_cursor.cur_x > old_cursor.max_x {
 		cursor.cur_x = cursor.max_x
 	}
-	return cursor
+	return cursor^
 }
 
 move_cursor_event :: proc(cursor: ^Cursor, ev: Event) {

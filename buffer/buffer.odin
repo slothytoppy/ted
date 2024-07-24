@@ -53,6 +53,7 @@ write_buffer_to_file :: proc(buffer: Buffer, file: string) -> bool {
 		append(&data, '\n')
 	}
 	success := os.write_entire_file(file, data[:])
+	log.info(data)
 	return success
 }
 

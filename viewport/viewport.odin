@@ -4,6 +4,7 @@ import "../cursor"
 import "../deps/ncurses"
 import "core:fmt"
 import "core:log"
+import "core:strings"
 
 // scroll command
 Command :: enum {
@@ -72,9 +73,15 @@ scroll_down :: proc(viewport: Viewport, #any_int lines_count: i32) -> (vp: Viewp
 }
 
 render :: proc(vp: ^Viewport, data: [dynamic][dynamic]byte) {
+	if len(data) <= 0 {
+		log.info("empty buffer")
+		return
+	}
 	// erase so that i rerender to an empty screen, only needed for scrolling
 	ncurses.erase()
+	ncurses.curs_set(0)
 	ncurses.move(0, 0)
+	ncurses.refresh()
 
 	if cursor.should_scroll(vp.cursor, .up) {
 		vp^ = scroll_up(vp^)
@@ -82,20 +89,15 @@ render :: proc(vp: ^Viewport, data: [dynamic][dynamic]byte) {
 		vp^ = scroll_down(vp^, len(data))
 	}
 	cursor: i32 = 0
-	for i in 0 ..< vp.max_y {
-		i := i
-		i += vp.scroll_y
-		if i > vp.scroll_y + vp.max_y {
-			break
-		}
-		if i > cast(i32)len(data) {
+	for line, i in data {
+		i := cast(i32)i
+		if i > vp.max_y + vp.scroll_y {
 			break
 		}
 		line_len := min(cast(i32)len(data[i]), vp.max_y)
-		ncurses.mvprintw(cursor, 0, "%s", fmt.ctprint(string(data[i][:line_len])))
-		cursor += 1
-		log.info(data[i])
+		ncurses.mvprintw(i, 0, "%s", strings.clone_to_cstring(string(data[i][:line_len])))
 	}
+	ncurses.curs_set(1)
 	ncurses.refresh()
 }
 

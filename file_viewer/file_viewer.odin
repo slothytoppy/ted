@@ -2,6 +2,7 @@ package file_viewer
 
 import "../deps/ncurses"
 import "core:os"
+import "core:strings"
 
 Cursor :: struct {
 	cur_x, cur_y, max_x, max_y: i32,
