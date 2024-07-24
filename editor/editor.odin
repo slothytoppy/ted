@@ -15,11 +15,12 @@ Mode :: enum {
 }
 
 Editor :: struct {
-	viewport: viewport.Viewport,
-	buffer:   buffer.Buffer,
-	keymap:   events.Keymap,
-	event:    events.KeyboardEvent,
-	mode:     Mode,
+	viewport:     viewport.Viewport,
+	buffer:       buffer.Buffer,
+	keymap:       events.Keymap,
+	event:        events.KeyboardEvent,
+	mode:         Mode,
+	current_file: string,
 }
 
 init_editor :: proc() -> Editor {
@@ -102,7 +103,7 @@ handle_keymap :: proc(editor: ^Editor, event: events.KeyboardEvent) {
 		goto_line_end(&editor.viewport, len(editor.buffer[editor.viewport.cursor.cur_y]))
 	case "control+s":
 		log.info("control+s")
-		buffer.write_buffer_to_file(editor.buffer, "test.odin")
+		buffer.write_buffer_to_file(editor.buffer, editor.current_file)
 	case:
 		if editor.mode == .insert {
 			if event.is_control == false {
@@ -172,6 +173,7 @@ run :: proc() {
 	} else {
 		editor.buffer = load_buffer_from_file(cli_args.file)
 	}
+	editor.current_file = cli_args.file
 	render(&editor)
 	event: bool
 	for {
