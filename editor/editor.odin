@@ -3,6 +3,7 @@ package editor
 import "../buffer"
 import "../cursor"
 import "../deps/ncurses/"
+import "../file_viewer"
 import "../viewport"
 import "./events"
 import "core:log"
@@ -11,16 +12,16 @@ import "core:os"
 Mode :: enum {
 	normal,
 	insert,
-	file_viewer,
 }
 
 Editor :: struct {
 	viewport:     viewport.Viewport,
 	buffer:       buffer.Buffer,
 	keymap:       events.Keymap,
-	event:        events.KeyboardEvent,
+	event:        events.Event,
 	mode:         Mode,
 	current_file: string,
+	file_viewer:  file_viewer.FileViewer,
 }
 
 init_editor :: proc() -> Editor {
@@ -37,6 +38,35 @@ init_editor :: proc() -> Editor {
 	editor.viewport.max_y = y
 	editor.viewport.max_x = x
 	editor.viewport.scroll_y = 0
+	events.init_keyboard_poll()
+	editor.keymap = events.init_keymap(
+		"KEY_UP",
+		"KEY_DOWN",
+		"KEY_LEFT",
+		"KEY_RIGHT",
+		"control+c",
+		"control+q",
+		"shift+a",
+		"KEY_ENTER",
+		"o",
+		"O",
+		"^",
+		"$",
+		"control+s",
+	)
+	assert(editor.keymap != nil)
+	cli_args: Args_Info
+	parse_cli_arguments(&cli_args)
+	editor.current_file = cli_args.file
+	context.logger = set_file_logger(cli_args.log_file)
+	if cli_args.file == "" {
+		editor.buffer = make(buffer.Buffer, 1)
+	} else {
+		editor.buffer = load_buffer_from_file(cli_args.file)
+	}
+	log.info(editor.mode)
+
+
 	return editor
 }
 
@@ -62,8 +92,8 @@ default_key_maps :: proc() -> events.Keymap {
 	)
 }
 
-handle_keymap :: proc(editor: ^Editor, event: events.KeyboardEvent) {
-	switch event.key {
+handle_keymap :: proc(editor: ^Editor) {
+	switch editor.event.(events.KeyboardEvent).key {
 	case "KEY_UP":
 		cursor.move_cursor_event(&editor.viewport.cursor, .up)
 	case "KEY_DOWN":
@@ -75,6 +105,10 @@ handle_keymap :: proc(editor: ^Editor, event: events.KeyboardEvent) {
 	case "control+q":
 		deinit_editor()
 		os.exit(0)
+	case "control+c":
+		if editor.mode == .insert {
+			editor.mode = .normal
+		}
 	case "KEY_BACKSPACE":
 		if editor.mode == .insert {
 			cursor.move_cursor_event(&editor.viewport.cursor, .left)
@@ -93,7 +127,7 @@ handle_keymap :: proc(editor: ^Editor, event: events.KeyboardEvent) {
 			)
 		}
 		cursor.move_cursor_event(&editor.viewport.cursor, .down)
-	case "I":
+	case "i":
 		if editor.mode == .normal {
 			editor.mode = .insert
 		}
@@ -103,10 +137,13 @@ handle_keymap :: proc(editor: ^Editor, event: events.KeyboardEvent) {
 		goto_line_end(&editor.viewport, len(editor.buffer[editor.viewport.cursor.cur_y]))
 	case "control+s":
 		log.info("control+s")
-		buffer.write_buffer_to_file(editor.buffer, editor.current_file)
+		result := buffer.write_buffer_to_file(editor.buffer, editor.current_file)
+		if result == false {
+			log.info("failed to write to file:", editor.current_file)
+		}
 	case:
 		if editor.mode == .insert {
-			if event.is_control == false {
+			if editor.event.(events.KeyboardEvent).is_control == false {
 				log.info(
 					"cur_row",
 					editor.viewport.cursor.cur_x,
@@ -117,7 +154,7 @@ handle_keymap :: proc(editor: ^Editor, event: events.KeyboardEvent) {
 					&editor.buffer,
 					line = editor.viewport.cursor.cur_y,
 					offset = editor.viewport.cursor.cur_x,
-					bytes = transmute([]byte)event.key[:],
+					bytes = transmute([]byte)editor.event.(events.KeyboardEvent).key[:],
 				)
 				cursor.move_cursor_event(&editor.viewport.cursor, .right)
 			}
@@ -128,8 +165,9 @@ handle_keymap :: proc(editor: ^Editor, event: events.KeyboardEvent) {
 update :: proc(editor_state: ^Editor) -> bool {
 	editor_state := editor_state
 	editor_state.event = events.poll_keypress()
-	if editor_state.event.key != "" {
-		handle_keymap(editor_state, editor_state.event)
+	log.info(editor_state.mode)
+	if editor_state.event.(events.KeyboardEvent).key != "" {
+		handle_keymap(editor_state)
 		return true
 	}
 	return false
@@ -139,7 +177,6 @@ update :: proc(editor_state: ^Editor) -> bool {
 for things to be called everytime the editor needs to rerender,
  */
 render :: proc(editor: ^Editor) {
-	command: viewport.Command
 	viewport.render(&editor.viewport, editor.buffer)
 	log.debug("moving to", editor.viewport.cursor.cur_x, editor.viewport.cursor.cur_y)
 	ncurses.move(editor.viewport.cursor.cur_y, editor.viewport.cursor.cur_x)
@@ -147,43 +184,19 @@ render :: proc(editor: ^Editor) {
 }
 
 run :: proc() {
-	cli_args: Args_Info
-	parse_cli_arguments(&cli_args)
 	editor := init_editor()
-	events.init_keyboard_poll()
-	editor.keymap = events.init_keymap(
-		"KEY_UP",
-		"KEY_DOWN",
-		"KEY_LEFT",
-		"KEY_RIGHT",
-		"control+c",
-		"control+q",
-		"shift+a",
-		"KEY_ENTER",
-		"o",
-		"O",
-		"^",
-		"$",
-		"control+s",
-	)
-	assert(editor.keymap != nil)
-	context.logger = set_file_logger(cli_args.log_file)
-	if cli_args.file == "" {
-		editor.mode = .file_viewer
-	} else {
-		editor.buffer = load_buffer_from_file(cli_args.file)
-	}
-	editor.current_file = cli_args.file
+
 	render(&editor)
 	event: bool
 	for {
 		event = update(&editor)
 		if event == true {
-			log.info(editor.event.key)
+			log.info(editor.event.(events.KeyboardEvent).key)
 			log.info("rendering a frame")
 			render(&editor)
 		}
 	}
+
 	deinit_editor()
 }
 

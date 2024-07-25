@@ -16,19 +16,16 @@ count_lines :: proc(data: []byte) -> (lines_count: int) {
 	return lines_count
 }
 
-make_renderable :: proc(buffer: ^Buffer) {
-	for &line in buffer {
-		append(&line, 0)
-	}
-}
-
 @(require_results)
 load_buffer_from_file :: proc(file: string) -> Buffer {
 	data, err := os.read_entire_file_from_filename(file)
 	if err == false {
-		return {}
+		log.info("failed to read file")
+		buffer := make(Buffer, 1)
+		return buffer
 	}
-	buffer := make(Buffer, count_lines(data))
+	lines := max(1, count_lines(data))
+	buffer := make(Buffer, lines)
 	last_line: i32 = 0
 	cursor := 0
 	for b, i in data {
@@ -41,11 +38,14 @@ load_buffer_from_file :: proc(file: string) -> Buffer {
 			cursor += 1
 		}
 	}
-
 	return buffer
 }
 
 write_buffer_to_file :: proc(buffer: Buffer, file: string) -> bool {
+	if file == "" {
+		log.info("invalid file name")
+		return false
+	}
 	data: [dynamic]byte
 	defer delete(data)
 	for line in buffer {
@@ -69,20 +69,7 @@ buffer_assign_byte_at :: proc(buffer: ^Buffer, b: byte, #any_int line, offset: i
 	assign_at(&buffer[line], offset, b)
 }
 
-// puts a space at position: pos in the buffer, doesnt grow or shrink the dynamic array
+// puts a space at line and offset; doesnt grow or shrink the dynamic array
 buffer_remove_byte_at :: proc(buffer: ^Buffer, #any_int line, offset: int) {
 	assign_at(&buffer[line], offset, ' ')
-}
-
-// use bytes.split if there are performance issues
-split :: proc(data: []byte, delim: byte) -> (line_idx: [dynamic]i32) {
-	last_line, current_line: int
-	for c, i in data {
-		if c == delim {
-			last_line = i
-			current_line += 1
-			append(&line_idx, cast(i32)i)
-		}
-	}
-	return line_idx
 }

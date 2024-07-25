@@ -1,11 +1,10 @@
-package keyboard
+package events
 
 import "../../deps/ncurses"
 import "core:log"
 import "core:strings"
 import "core:sync/chan"
 import "core:thread"
-import "core:unicode"
 
 KeyboardEvent :: struct {
 	key:                  string,
@@ -31,20 +30,22 @@ init_keyboard_poll :: proc() {
 	thread.start(th)
 }
 
-poll_keypress :: proc() -> (ev: KeyboardEvent) {
+@(require_results)
+poll_keypress :: proc() -> (ev: Event) {
+	keyboard_event: KeyboardEvent
 	maybe_key, _ := chan.try_recv(keyboard_channel)
 	if maybe_key != nil {
 		key := maybe_key.?
 		if len(key) > 1 && key[0] == '^' && key[1] != 'J' {
 			if key[1] == 'J' {
-				ev.key = "enter"
+				keyboard_event.key = "enter"
 			} else {
-				ev.key = strings.concatenate({"control+", strings.to_lower(key[1:])})
+				keyboard_event.key = strings.concatenate({"control+", strings.to_lower(key[1:])})
 			}
-			log.info("found:", ev.key)
-			ev.is_control = true
+			log.info("found:", keyboard_event.key)
+			keyboard_event.is_control = true
 		} else {
-			bytes: []byte = transmute([]byte)ev.key
+			bytes: []byte = transmute([]byte)keyboard_event.key
 			found_shift := false
 			for &b in bytes {
 				if b > 65 || b <= 90 {
@@ -53,14 +54,17 @@ poll_keypress :: proc() -> (ev: KeyboardEvent) {
 				}
 			}
 			if found_shift {
-				ev.key = strings.concatenate({"shift+", strings.clone_from_bytes(bytes)})
-				ev.is_shift = true
+				keyboard_event.key = strings.concatenate(
+					{"shift+", strings.clone_from_bytes(bytes)},
+				)
+				keyboard_event.is_shift = true
 			} else {
-				ev.key = key
+				keyboard_event.key = key
 			}
 		}
 	}
-	return ev
+	ev = keyboard_event
+	return ev.(KeyboardEvent)
 }
 
 init_keymap :: proc(strs: ..string) -> Keymap {
