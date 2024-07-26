@@ -19,7 +19,6 @@ main :: proc() {
 	max_x = x
 	max_y = y
 	fv := file_viewer.InitFileViewer(
-		".",
 		viewport.Viewport{max_x = x, max_y = y, cursor = {cur_y = 0, cur_x = 0}},
 	)
 	file_viewer.ReadDir(".", &fv)
@@ -31,6 +30,7 @@ main :: proc() {
 		event := events.poll_keypress()
 		if event.(events.KeyboardEvent).key != "" {
 			command := editor.update_file_viewer(&fv, event)
+			fv.vp.max_y = cast(i32)len(fv.list) - 1
 			log.info(command)
 			if command == .quit {
 				editor.deinit_editor()

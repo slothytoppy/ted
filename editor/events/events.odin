@@ -8,5 +8,5 @@ GetEvent :: proc(event: Event) -> Event {
 	switch e in event {
 	case KeyboardEvent:
 	}
-	return event.(KeyboardEvent)
+	return event
 }

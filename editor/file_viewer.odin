@@ -37,20 +37,5 @@ render_file_viewer :: proc(fv: file_viewer.FileViewer, command: file_viewer.Comm
 		renderer_event = .update_cursor
 	case .quit:
 	}
-	switch renderer_event {
-	case .render_whole:
-		ncurses.erase()
-		ncurses.refresh()
-		for entry, i in fv.list {
-			ncurses.mvprintw(
-				cast(i32)i,
-				0,
-				"%s",
-				strings.clone_to_cstring(entry.short_name, context.temp_allocator),
-			)
-			ncurses.move(fv.vp.cursor.cur_y, fv.vp.cursor.cur_x)
-		}
-	case .update_cursor:
-		ncurses.move(fv.vp.cursor.cur_y, fv.vp.cursor.cur_x)
-	}
+	file_viewer.render(fv, renderer_event)
 }
