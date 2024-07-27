@@ -5,7 +5,7 @@ import "../cursor"
 import "../deps/ncurses/"
 import "../file_viewer"
 import "../viewport"
-import "./events"
+import "core:fmt"
 import "core:log"
 import "core:os"
 
@@ -17,8 +17,8 @@ Mode :: enum {
 Editor :: struct {
 	viewport:     viewport.Viewport,
 	buffer:       buffer.Buffer,
-	keymap:       events.Keymap,
-	event:        events.Event,
+	keymap:       Keymap,
+	event:        Event,
 	mode:         Mode,
 	current_file: string,
 	file_viewer:  file_viewer.FileViewer,
@@ -38,8 +38,8 @@ init_editor :: proc() -> Editor {
 	editor.viewport.max_y = y
 	editor.viewport.max_x = x
 	editor.viewport.scroll_y = 0
-	events.init_keyboard_poll()
-	editor.keymap = events.init_keymap(
+	init_keyboard_poll()
+	editor.keymap = init_keymap(
 		"KEY_UP",
 		"KEY_DOWN",
 		"KEY_LEFT",
@@ -65,8 +65,6 @@ init_editor :: proc() -> Editor {
 		editor.buffer = load_buffer_from_file(cli_args.file)
 	}
 	log.info(editor.mode)
-
-
 	return editor
 }
 
@@ -79,8 +77,8 @@ deinit_editor :: proc() {
 	ncurses.endwin()
 }
 
-default_key_maps :: proc() -> events.Keymap {
-	return events.init_keymap(
+default_key_maps :: proc() -> Keymap {
+	return init_keymap(
 		"KEY_UP",
 		"KEY_DOWN",
 		"KEY_LEFT",
@@ -93,7 +91,7 @@ default_key_maps :: proc() -> events.Keymap {
 }
 
 handle_keymap :: proc(editor: ^Editor) {
-	switch editor.event.(events.KeyboardEvent).key {
+	switch editor.event.(KeyboardEvent).key {
 	case "KEY_UP":
 		cursor.move_cursor_event(&editor.viewport.cursor, .up)
 	case "KEY_DOWN":
@@ -143,7 +141,7 @@ handle_keymap :: proc(editor: ^Editor) {
 		}
 	case:
 		if editor.mode == .insert {
-			if editor.event.(events.KeyboardEvent).is_control == false {
+			if editor.event.(KeyboardEvent).is_control == false {
 				log.info(
 					"cur_row",
 					editor.viewport.cursor.cur_x,
@@ -154,7 +152,7 @@ handle_keymap :: proc(editor: ^Editor) {
 					&editor.buffer,
 					line = editor.viewport.cursor.cur_y,
 					offset = editor.viewport.cursor.cur_x,
-					bytes = transmute([]byte)editor.event.(events.KeyboardEvent).key[:],
+					bytes = transmute([]byte)editor.event.(KeyboardEvent).key[:],
 				)
 				cursor.move_cursor_event(&editor.viewport.cursor, .right)
 			}
@@ -164,13 +162,47 @@ handle_keymap :: proc(editor: ^Editor) {
 
 update :: proc(editor_state: ^Editor) -> bool {
 	editor_state := editor_state
-	editor_state.event = events.poll_keypress()
+	editor_state.event = poll_keypress()
 	log.info(editor_state.mode)
-	if editor_state.event.(events.KeyboardEvent).key != "" {
+	if editor_state.event.(KeyboardEvent).key != "" {
 		handle_keymap(editor_state)
 		return true
 	}
 	return false
+}
+
+renderer_run :: proc(renderer: ^Renderer(Editor)) {
+	renderer.data = init_editor()
+	event := Event{}
+	loop: for {
+		get_input := poll_keypress()
+		if get_input != {} {
+			event = get_input
+		}
+		event = renderer.update(&renderer.data, event)
+		#partial switch e in event {
+		case KeyboardEvent:
+			log.info(renderer.data.buffer)
+			ncurses.clear()
+			ncurses.refresh()
+			ncurses.move(0, 0)
+			max_x := ncurses.getmaxx(ncurses.stdscr)
+			max_y := ncurses.getmaxy(ncurses.stdscr)
+			str := renderer.render(renderer.data)
+			log.info(str)
+			line := max_x / max(0, cast(i32)len(str), 1)
+			for s, i in str {
+				if cast(i32)i > max_y {
+					break
+				}
+				ncurses.printw("%s", fmt.ctprint(s))
+				ncurses.move(cast(i32)i + 1, 0)
+			}
+			ncurses.refresh()
+		case Quit:
+			break loop
+		}
+	}
 }
 
 /* 
@@ -191,7 +223,7 @@ run :: proc() {
 	for {
 		event = update(&editor)
 		if event == true {
-			log.info(editor.event.(events.KeyboardEvent).key)
+			log.info(editor.event.(KeyboardEvent).key)
 			log.info("rendering a frame")
 			render(&editor)
 		}

@@ -1,6 +1,6 @@
-package events
+package editor
 
-import "../../deps/ncurses"
+import "../deps/ncurses"
 import "core:log"
 import "core:strings"
 import "core:sync/chan"
@@ -11,12 +11,22 @@ KeyboardEvent :: struct {
 	is_control, is_shift: bool,
 }
 
-// mapping of strings to keyboard events
-Keymap :: map[string]KeyboardEvent
+Init :: struct {}
+Quit :: struct {}
+GoToLineStart :: struct {}
+GoToLineEnd :: struct {}
 
-@(private)
+Event :: union {
+	KeyboardEvent,
+	Quit,
+	Init,
+	GoToLineStart,
+	GoToLineEnd,
+}
+
+@(private = "file")
 keyboard_channel_type :: chan.Chan(Maybe(string))
-@(private)
+@(private = "file")
 keyboard_channel: keyboard_channel_type
 
 init_keyboard_poll :: proc() {
@@ -65,12 +75,4 @@ poll_keypress :: proc() -> (ev: Event) {
 	}
 	ev = keyboard_event
 	return ev.(KeyboardEvent)
-}
-
-init_keymap :: proc(strs: ..string) -> Keymap {
-	keymap := make(Keymap)
-	for s in strs {
-		map_insert(&keymap, s, KeyboardEvent{key = s, is_control = true, is_shift = false})
-	}
-	return keymap
 }
