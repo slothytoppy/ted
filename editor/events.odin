@@ -11,19 +11,6 @@ KeyboardEvent :: struct {
 	is_control, is_shift: bool,
 }
 
-Quit :: struct {}
-GoToLineStart :: struct {}
-GoToLineEnd :: struct {}
-Nothing :: struct {}
-
-Event :: union {
-	Nothing,
-	KeyboardEvent,
-	Quit,
-	GoToLineStart,
-	GoToLineEnd,
-}
-
 @(private = "file")
 keyboard_channel_type :: chan.Chan(Maybe(string))
 @(private = "file")

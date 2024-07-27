@@ -23,16 +23,26 @@ Editor :: struct {
 	file_viewer:  file_viewer.FileViewer,
 }
 
-load_buffer_from_file :: proc(file: string) -> buffer.Buffer {
-	return buffer.load_buffer_from_file(file)
+ChangeRenderer :: proc(
+	$T: typeid,
+	init: proc() -> T,
+	update: proc(t: ^T, event: Event) -> Event,
+	render: proc(t: T) -> []string,
+)
+
+EditorEvent :: union {
+	Event,
+	ChangeRenderer,
 }
 
 renderer_run :: proc(renderer: ^Renderer(Editor)) {
 	event: Event
 	args_info: Args_Info
+	init_keyboard_poll()
 	parse_cli_arguments(&args_info)
 	context.logger = set_file_logger(args_info.log_file)
 	renderer.init()
+	log.info(args_info)
 	loop: for {
 		event = renderer.update(&renderer.data, poll_keypress())
 		#partial switch e in event {
@@ -55,6 +65,7 @@ renderer_run :: proc(renderer: ^Renderer(Editor)) {
 			break loop
 		}
 	}
+	ncurses.endwin()
 }
 
 set_file_logger :: proc(handle: os.Handle) -> log.Logger {

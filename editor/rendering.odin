@@ -1,8 +1,31 @@
 package editor
 
 import "../buffer"
+import "core:flags"
 import "core:log"
+import "core:os"
 import "core:strings"
+
+Nothing :: struct {}
+Quit :: struct {}
+GoToLineStart :: struct {}
+GoToLineEnd :: struct {}
+Scroll :: struct {
+	Direction: enum {
+		up,
+		down,
+	},
+	amount:    i32,
+}
+
+Event :: union {
+	Nothing,
+	KeyboardEvent,
+	Quit,
+	GoToLineStart,
+	GoToLineEnd,
+	Scroll,
+}
 
 Renderer :: struct($T: typeid) {
 	data:   T,
@@ -12,6 +35,16 @@ Renderer :: struct($T: typeid) {
 }
 
 default_init :: proc() -> (editor: Editor) {
+	cli_args: Args_Info
+	if e := parse_cli_arguments(&cli_args); e != .none {
+		#partial switch e {
+		case .help_request:
+			flags.write_usage(os.stream_from_handle(os.stdout), Args_Info, "ted")
+			os.exit(0)
+		case:
+			os.exit(1)
+		}
+	}
 	init_ncurses()
 	y, x := getmaxyx()
 	editor.viewport.cursor = {
@@ -21,11 +54,7 @@ default_init :: proc() -> (editor: Editor) {
 	editor.viewport.max_y = y
 	editor.viewport.max_x = x
 	editor.viewport.scroll_y = 0
-	init_keyboard_poll()
-	cli_args: Args_Info
-	parse_cli_arguments(&cli_args)
 	editor.current_file = cli_args.file
-	context.logger = set_file_logger(cli_args.log_file)
 	if cli_args.file == "" {
 		editor.buffer = make(buffer.Buffer, 1)
 	} else {
@@ -36,6 +65,8 @@ default_init :: proc() -> (editor: Editor) {
 
 default_updater :: proc(editor: ^Editor, editor_event: Event) -> (event: Event) {
 	switch e in editor_event {
+	case Scroll:
+		break
 	case Nothing:
 		return Nothing{}
 	case KeyboardEvent:

@@ -1,5 +1,6 @@
 package editor
 
+import "../buffer"
 import "../deps/ncurses"
 import "core:log"
 import "core:os"
@@ -49,4 +50,8 @@ init_ncurses :: proc() -> (window: ^ncurses.Window) {
 
 deinit_ncurses :: proc() {
 	ncurses.endwin()
+}
+
+load_buffer_from_file :: proc(file: string) -> buffer.Buffer {
+	return buffer.load_buffer_from_file(file)
 }
