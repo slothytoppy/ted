@@ -1,5 +1,6 @@
 package editor
 
+import "../deps/ncurses"
 import "core:log"
 import "core:os"
 
@@ -20,6 +21,32 @@ logger_init :: proc(log_file: string) -> (logger: log.Logger, result: bool) {
 	return logger, true
 }
 
-log :: proc(args: ..any, loc := #caller_location) {
-	log.info(args, location = loc)
+getmaxy :: proc() -> (y: i32) {
+	return ncurses.getmaxy(ncurses.stdscr)
+}
+
+getmaxx :: proc() -> (x: i32) {
+	return ncurses.getmaxx(ncurses.stdscr)
+}
+
+getmaxyx :: proc() -> (y, x: i32) {
+	return ncurses.getmaxyx(ncurses.stdscr)
+}
+
+getcuryx :: proc() -> (y, x: i32) {
+	x = ncurses.getcurx(ncurses.stdscr)
+	y = ncurses.getcury(ncurses.stdscr)
+	return y, x
+}
+
+init_ncurses :: proc() -> (window: ^ncurses.Window) {
+	window = ncurses.initscr()
+	ncurses.keypad(ncurses.stdscr, true)
+	ncurses.raw()
+	ncurses.noecho()
+	return window
+}
+
+deinit_ncurses :: proc() {
+	ncurses.endwin()
 }
