@@ -7,6 +7,7 @@ Line :: #type [dynamic]byte
 
 Buffer :: #type [dynamic]Line
 
+// for counting lines in a file
 count_lines :: proc(data: []byte) -> (lines_count: int) {
 	for b in data {
 		if b == '\n' {
@@ -18,7 +19,7 @@ count_lines :: proc(data: []byte) -> (lines_count: int) {
 
 @(require_results)
 load_buffer_from_file :: proc(file: string) -> Buffer {
-	data, err := os.read_entire_file_from_filename(file)
+	data, err := os.read_entire_file_from_filename(file, context.temp_allocator)
 	if err == false {
 		log.info("failed to read file")
 		buffer := make(Buffer, 1)
@@ -46,8 +47,7 @@ write_buffer_to_file :: proc(buffer: Buffer, file: string) -> bool {
 		log.info("invalid file name")
 		return false
 	}
-	data: [dynamic]byte
-	defer delete(data)
+	data := make([dynamic]byte, context.temp_allocator)
 	for line in buffer {
 		append(&data, ..line[:])
 		append(&data, '\n')

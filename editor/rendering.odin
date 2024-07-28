@@ -1,10 +1,11 @@
 package editor
 
 import "../buffer"
+import "../viewport"
 import "core:flags"
+import "core:fmt"
 import "core:log"
 import "core:os"
-import "core:strings"
 
 Nothing :: struct {}
 Quit :: struct {}
@@ -34,6 +35,13 @@ Renderer :: struct($T: typeid) {
 	render: proc(model: T) -> []string,
 }
 
+ChangeRenderer :: proc(
+	$T: typeid,
+	init: proc() -> T,
+	update: proc(t: ^T, event: Event) -> Event,
+	render: proc(t: T) -> []string,
+)
+
 default_init :: proc() -> (editor: Editor) {
 	cli_args: Args_Info
 	if e := parse_cli_arguments(&cli_args); e != .none {
@@ -45,16 +53,7 @@ default_init :: proc() -> (editor: Editor) {
 			os.exit(1)
 		}
 	}
-	init_ncurses()
-	y, x := getmaxyx()
-	editor.viewport.cursor = {
-		max_x = x,
-		max_y = y,
-	}
-	editor.viewport.max_y = y
-	editor.viewport.max_x = x
-	editor.viewport.scroll_y = 0
-	editor.current_file = cli_args.file
+	editor.viewport.max_x, editor.viewport.max_y = getmaxxy()
 	if cli_args.file == "" {
 		editor.buffer = make(buffer.Buffer, 1)
 	} else {
@@ -73,6 +72,32 @@ default_updater :: proc(editor: ^Editor, editor_event: Event) -> (event: Event) 
 		if e.key == "control+q" {
 			event = Quit{}
 		} else {
+			switch (e.key) {
+			case "KEY_LEFT":
+				if editor.viewport.cur_x == 0 {
+					break
+				}
+				editor.viewport.cur_x -= 1
+			case "KEY_RIGHT":
+				if editor.viewport.cur_x >= editor.viewport.max_x {
+					break
+				}
+				editor.viewport.cur_x += 1
+			case "KEY_UP":
+				if editor.viewport.cur_y == 0 {
+					editor.viewport.scroll_y -= 1
+					break
+				}
+				editor.viewport.cur_y -= 1
+				log.info(editor.viewport.cur_y, editor.viewport.scroll_y)
+			case "KEY_DOWN":
+				if editor.viewport.cur_y >= editor.viewport.max_y {
+					editor.viewport.scroll_y += 1
+					log.info(editor.viewport.cur_y, editor.viewport.scroll_y)
+					break
+				}
+				editor.viewport.cur_y += 1
+			}
 			event = editor_event
 		}
 	case Quit:
@@ -85,11 +110,23 @@ default_updater :: proc(editor: ^Editor, editor_event: Event) -> (event: Event) 
 	return event
 }
 
+// TODO: fix scrolling
 default_renderer :: proc(editor: Editor) -> []string {
-	log.info("called renderer")
-	strs := make([]string, len(editor.buffer))
+	cur_y := editor.viewport.cur_y
+	ncurses_move(cur_y + editor.viewport.scroll_y, 0)
+	max_y := editor.viewport.scroll_y + editor.viewport.max_y
 	for line, i in editor.buffer {
-		strs[i] = transmute(string)line[:]
+		i := cast(i32)i
+		if i >= editor.viewport.max_y + editor.viewport.scroll_y {
+			break
+		}
+		ncurses_mvprint(
+			i,
+			0,
+			format_to_cstring(
+				transmute(string)editor.buffer[clamp(i + editor.viewport.scroll_y, 0, max_y)][:],
+			),
+		)
 	}
-	return strs
+	return {}
 }

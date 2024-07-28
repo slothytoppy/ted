@@ -34,6 +34,9 @@ poll_keypress :: proc() -> (ev: Event) {
 	if maybe_key == nil || maybe_key.? == "" {
 		return Nothing{}
 	}
+	if maybe_key == "^J" {
+
+	}
 	key := maybe_key.?
 	if key == " " {
 		return KeyboardEvent{key = "space"}
@@ -42,7 +45,10 @@ poll_keypress :: proc() -> (ev: Event) {
 		if key[1] == 'J' {
 			keyboard_event.key = "enter"
 		} else {
-			keyboard_event.key = strings.concatenate({"control+", strings.to_lower(key[1:])})
+			keyboard_event.key = strings.concatenate(
+				{"control+", strings.to_lower(key[1:])},
+				context.temp_allocator,
+			)
 		}
 		log.info("found:", keyboard_event.key)
 		keyboard_event.is_control = true
@@ -56,7 +62,10 @@ poll_keypress :: proc() -> (ev: Event) {
 			}
 		}
 		if found_shift {
-			keyboard_event.key = strings.concatenate({"shift+", strings.clone_from_bytes(bytes)})
+			keyboard_event.key = strings.concatenate(
+				{"shift+", strings.clone_from_bytes(bytes)},
+				context.temp_allocator,
+			)
 			keyboard_event.is_shift = true
 		} else {
 			keyboard_event.key = key

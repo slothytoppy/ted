@@ -2,10 +2,9 @@ package file_viewer
 
 import "../deps/ncurses"
 import "../viewport"
+import "core:fmt"
 import "core:log"
 import "core:os"
-import "core:strings"
-import "core:testing"
 
 Command :: enum {
 	up,
@@ -89,7 +88,7 @@ go_to_child_dir :: proc(file_viewer: FileViewer, path: string) -> (fv: FileViewe
 		is_relative = false
 	}
 	current_dir := fv.current_dir.path
-	fv.current_dir.path = strings.concatenate({current_dir, "/", path}, context.temp_allocator)
+	fv.current_dir.path = fmt.tprint(current_dir, "/", path)
 	if os.is_dir(fv.selected_file.full_name) {
 		ReadDir(fv.current_dir.path, &fv)
 		fv.current_dir.is_dir = true
@@ -133,12 +132,7 @@ render :: proc(file_viewer: FileViewer, event: RendererEvent) {
 		ncurses.erase()
 		ncurses.refresh()
 		for entry, i in file_viewer.list {
-			ncurses.mvprintw(
-				cast(i32)i,
-				0,
-				"%s",
-				strings.clone_to_cstring(entry.short_name, context.temp_allocator),
-			)
+			ncurses.mvprintw(cast(i32)i, 0, "%s", fmt.ctprint(entry.short_name))
 			ncurses.move(file_viewer.vp.cursor.cur_y, file_viewer.vp.cursor.cur_x)
 		}
 	case .update_cursor:

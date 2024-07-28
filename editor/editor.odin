@@ -3,11 +3,12 @@ package editor
 import "../buffer"
 import "../cursor"
 import "../deps/ncurses/"
-import "../file_viewer"
 import "../viewport"
 import "core:fmt"
 import "core:log"
+import "core:mem"
 import "core:os"
+import "core:time"
 
 Mode :: enum {
 	normal,
@@ -20,15 +21,7 @@ Editor :: struct {
 	event:        Event,
 	mode:         Mode,
 	current_file: string,
-	file_viewer:  file_viewer.FileViewer,
 }
-
-ChangeRenderer :: proc(
-	$T: typeid,
-	init: proc() -> T,
-	update: proc(t: ^T, event: Event) -> Event,
-	render: proc(t: T) -> []string,
-)
 
 EditorEvent :: union {
 	Event,
@@ -41,29 +34,29 @@ renderer_run :: proc(renderer: ^Renderer(Editor)) {
 	init_keyboard_poll()
 	parse_cli_arguments(&args_info)
 	context.logger = set_file_logger(args_info.log_file)
-	renderer.init()
+	init_ncurses()
+	renderer.data = renderer.init()
 	log.info(args_info)
+	current_time := time.now()
 	loop: for {
 		event = renderer.update(&renderer.data, poll_keypress())
-		#partial switch e in event {
-		case KeyboardEvent:
+		if time.duration_milliseconds(time.since(current_time)) >= 150 {
+			current_time = time.now()
 			ncurses.clear()
+			ncurses.curs_set(0)
 			ncurses.refresh()
 			ncurses.move(0, 0)
-			max_x := getmaxx()
-			max_y := getmaxy()
-			str := renderer.render(renderer.data)
-			for s, i in str {
-				if cast(i32)i > max_y {
-					break
-				}
-				ncurses.printw("%s", fmt.ctprint(s))
-				ncurses.move(cast(i32)i + 1, 0)
-			}
+			renderer.render(renderer.data)
+			//ncurses_move(renderer.data.cur_x, renderer.data.cur_y)
+			ncurses.curs_set(1)
 			ncurses.refresh()
+		}
+		#partial switch e in event {
+		case KeyboardEvent:
 		case Quit:
 			break loop
 		}
+		free_all(context.temp_allocator)
 	}
 	ncurses.endwin()
 }
