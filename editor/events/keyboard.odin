@@ -1,15 +1,10 @@
-package editor
+package events
 
-import "../deps/ncurses"
+import "../../deps/ncurses"
 import "core:log"
 import "core:strings"
 import "core:sync/chan"
 import "core:thread"
-
-KeyboardEvent :: struct {
-	key:                  string,
-	is_control, is_shift: bool,
-}
 
 @(private = "file")
 keyboard_channel_type :: chan.Chan(Maybe(string))

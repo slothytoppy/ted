@@ -3,7 +3,9 @@ package editor
 import "../buffer"
 import "../cursor"
 import "../deps/ncurses/"
+import "../file_viewer"
 import "../viewport"
+import "./events"
 import "core:fmt"
 import "core:log"
 import "core:mem"
@@ -16,44 +18,42 @@ Mode :: enum {
 }
 
 Editor :: struct {
-	viewport:     viewport.Viewport,
-	buffer:       buffer.Buffer,
-	event:        Event,
-	mode:         Mode,
-	current_file: string,
+	viewport: viewport.Viewport,
+	buffer:   buffer.Buffer,
+	mode:     Mode,
 }
 
-EditorEvent :: union {
-	Event,
-	ChangeRenderer,
-}
-
-renderer_run :: proc(renderer: ^Renderer(Editor)) {
-	event: Event
+renderer_run :: proc(renderer: ^events.Renderer($T)) {
+	event: events.Event
 	args_info: Args_Info
-	init_keyboard_poll()
+	events.init_keyboard_poll()
 	parse_cli_arguments(&args_info)
 	context.logger = set_file_logger(args_info.log_file)
 	init_ncurses()
+	if args_info.file == "" {
+		//
+	}
 	renderer.data = renderer.init()
 	log.info(args_info)
-	current_time := time.now()
 	loop: for {
-		event = renderer.update(&renderer.data, poll_keypress())
-		if time.duration_milliseconds(time.since(current_time)) >= 150 {
-			current_time = time.now()
-			ncurses.clear()
-			ncurses.curs_set(0)
-			ncurses.refresh()
-			ncurses.move(0, 0)
-			renderer.render(renderer.data)
-			//ncurses_move(renderer.data.cur_x, renderer.data.cur_y)
-			ncurses.curs_set(1)
-			ncurses.refresh()
-		}
+		event = renderer.update(&renderer.data, events.poll_keypress())
 		#partial switch e in event {
-		case KeyboardEvent:
-		case Quit:
+		case events.KeyboardEvent:
+			if e.key == "KEY_UP" ||
+			   e.key == "KEY_DOWN" ||
+			   e.key == "KEY_LEFT" ||
+			   e.key == "KEY_RIGHT" ||
+			   renderer.data.mode == .insert {
+				ncurses.clear()
+				ncurses.curs_set(0)
+				ncurses.refresh()
+				ncurses.move(0, 0)
+				renderer.render(renderer.data)
+				move(renderer.data.viewport.cur_y, renderer.data.viewport.cur_x)
+				ncurses.curs_set(1)
+				ncurses.refresh()
+			}
+		case events.Quit:
 			break loop
 		}
 		free_all(context.temp_allocator)

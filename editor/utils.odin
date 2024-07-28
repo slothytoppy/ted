@@ -41,7 +41,7 @@ getcuryx :: proc() -> (y, x: i32) {
 	return y, x
 }
 
-ncurses_move :: proc(#any_int y, x: i32) {
+move :: proc(#any_int y, x: i32) {
 	ncurses.move(y, x)
 }
 
@@ -62,11 +62,17 @@ load_buffer_from_file :: proc(file: string) -> buffer.Buffer {
 }
 
 // uses y, x for compatability with ncurses
-ncurses_mvprint :: proc(#any_int y, x: i32, str: cstring) {
+mvprint :: proc(#any_int y, x: i32, str: cstring) {
 	ncurses.mvprintw(y, x, "%s", str)
 }
 
-ncurses_refresh :: proc() {
+// clear and refreshes screen
+clear_screen :: proc() {
+	ncurses.clear()
+	ncurses.refresh()
+}
+
+refresh_screen :: proc() {
 	ncurses.refresh()
 }
 
