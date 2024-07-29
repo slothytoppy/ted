@@ -18,9 +18,10 @@ Mode :: enum {
 }
 
 Editor :: struct {
-	viewport: viewport.Viewport,
-	buffer:   buffer.Buffer,
-	mode:     Mode,
+	current_file: string,
+	viewport:     viewport.Viewport,
+	buffer:       buffer.Buffer,
+	mode:         Mode,
 }
 
 renderer_run :: proc(renderer: ^events.Renderer($T)) {
@@ -30,20 +31,21 @@ renderer_run :: proc(renderer: ^events.Renderer($T)) {
 	parse_cli_arguments(&args_info)
 	context.logger = set_file_logger(args_info.log_file)
 	init_ncurses()
-	if args_info.file == "" {
-		//
-	}
 	renderer.data = renderer.init()
 	log.info(args_info)
 	loop: for {
 		event = renderer.update(&renderer.data, events.poll_keypress())
 		#partial switch e in event {
+		case events.UpdateCursorEvent:
+			ncurses.curs_set(0)
+			ncurses.move(0, 0)
+			clear_screen()
+			renderer.render(renderer.data)
+			move(renderer.data.viewport.cur_y, renderer.data.viewport.cur_x)
+			ncurses.curs_set(1)
+			ncurses.refresh()
 		case events.KeyboardEvent:
-			if e.key == "KEY_UP" ||
-			   e.key == "KEY_DOWN" ||
-			   e.key == "KEY_LEFT" ||
-			   e.key == "KEY_RIGHT" ||
-			   renderer.data.mode == .insert {
+			if renderer.data.mode == .insert {
 				ncurses.clear()
 				ncurses.curs_set(0)
 				ncurses.refresh()

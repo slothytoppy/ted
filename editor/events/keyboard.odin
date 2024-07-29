@@ -30,7 +30,7 @@ poll_keypress :: proc() -> (ev: Event) {
 		return Nothing{}
 	}
 	if maybe_key == "^J" {
-
+		return KeyboardEvent{key = "enter"}
 	}
 	key := maybe_key.?
 	if key == " " {

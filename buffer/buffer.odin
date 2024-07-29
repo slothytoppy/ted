@@ -44,7 +44,7 @@ load_buffer_from_file :: proc(file: string) -> Buffer {
 
 write_buffer_to_file :: proc(buffer: Buffer, file: string) -> bool {
 	if file == "" {
-		log.info("invalid file name")
+		log.info("invalid file name: empty file path")
 		return false
 	}
 	data := make([dynamic]byte, context.temp_allocator)
@@ -53,7 +53,7 @@ write_buffer_to_file :: proc(buffer: Buffer, file: string) -> bool {
 		append(&data, '\n')
 	}
 	success := os.write_entire_file(file, data[:])
-	log.info(data)
+	log.info(transmute(string)data[:])
 	return success
 }
 
@@ -62,7 +62,7 @@ buffer_append_bytes_at :: proc(buffer: ^Buffer, bytes: []byte, #any_int line, of
 }
 
 buffer_append_byte_at :: proc(buffer: ^Buffer, b: byte, #any_int line, offset: int) {
-	inject_at_elem(&buffer[line], offset, b)
+	inject_at(&buffer[line], offset, b)
 }
 
 buffer_assign_byte_at :: proc(buffer: ^Buffer, b: byte, #any_int line, offset: int) {
@@ -71,5 +71,5 @@ buffer_assign_byte_at :: proc(buffer: ^Buffer, b: byte, #any_int line, offset: i
 
 // puts a space at line and offset; doesnt grow or shrink the dynamic array
 buffer_remove_byte_at :: proc(buffer: ^Buffer, #any_int line, offset: int) {
-	assign_at(&buffer[line], offset, ' ')
+	ordered_remove(&buffer[line], offset)
 }

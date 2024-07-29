@@ -10,6 +10,7 @@ Quit :: struct {}
 GoToLineStart :: struct {}
 GoToLineEnd :: struct {}
 Enter :: struct {}
+UpdateCursorEvent :: struct {}
 /*
 Scroll :: struct {
 	Direction: enum {
@@ -24,9 +25,8 @@ Event :: union {
 	Nothing,
 	KeyboardEvent,
 	Quit,
-	GoToLineStart,
-	GoToLineEnd,
 	Enter,
+	UpdateCursorEvent,
 }
 
 Renderer :: struct($T: typeid) {

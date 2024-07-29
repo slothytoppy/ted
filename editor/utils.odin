@@ -61,9 +61,18 @@ load_buffer_from_file :: proc(file: string) -> buffer.Buffer {
 	return buffer.load_buffer_from_file(file)
 }
 
+print :: proc(str: cstring) {
+	ncurses.printw("%s", str)
+}
+
 // uses y, x for compatability with ncurses
 mvprint :: proc(#any_int y, x: i32, str: cstring) {
 	ncurses.mvprintw(y, x, "%s", str)
+}
+
+// removes a char at line cur_y, cur_x-1
+delete_char :: proc(editor: ^Editor) {
+	buffer.buffer_remove_byte_at(&editor.buffer, editor.viewport.cur_y, editor.viewport.cur_x - 1)
 }
 
 // clear and refreshes screen
