@@ -36,6 +36,9 @@ poll_keypress :: proc() -> (ev: Event) {
 	if key == " " {
 		return KeyboardEvent{key = "space"}
 	}
+	if key == "KEY_BACKSPACE" {
+		return KeyboardEvent{key = "backspace"}
+	}
 	if len(key) > 1 && key[0] == '^' && key[1] != 'J' {
 		if key[1] == 'J' {
 			keyboard_event.key = "enter"

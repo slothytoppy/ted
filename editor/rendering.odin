@@ -80,6 +80,20 @@ handle_normal_mode :: proc(editor: ^Editor, editor_event: events.Event) -> (even
 	#partial switch e in editor_event {
 	case events.KeyboardEvent:
 		switch e.key {
+		case "backspace":
+			if editor.viewport.cur_x > 0 {
+				editor.viewport.cur_x -= 1
+				event = events.UpdateCursorEvent{}
+			} else {
+				if editor.viewport.cur_y > 0 {
+					editor.viewport.cur_y -= 1
+					editor.viewport.cur_x = min(
+						cast(i32)len(editor.buffer[editor.viewport.cur_y]),
+						editor.viewport.max_x,
+					)
+					event = events.UpdateCursorEvent{}
+				}
+			}
 		case "control+s":
 			buffer.write_buffer_to_file(editor.buffer, editor.current_file)
 			log.info("wrote to:", editor.current_file)
@@ -124,7 +138,7 @@ handle_insert_mode :: proc(editor: ^Editor, editor_event: events.Event) -> (even
 	#partial switch e in editor_event {
 	case events.KeyboardEvent:
 		switch e.key {
-		case "KEY_BACKSPACE":
+		case "backspace":
 			if len(editor.buffer[editor.viewport.cur_y]) > 0 && editor.viewport.cur_x > 0 {
 				delete_char(editor)
 				editor.viewport.cur_x -= 1
@@ -137,7 +151,7 @@ handle_insert_mode :: proc(editor: ^Editor, editor_event: events.Event) -> (even
 				tmp := make(buffer.Buffer, len(editor.buffer) + 1)
 				for line, i in editor.buffer {
 					i := cast(i32)i
-					if i < editor.viewport.cur_y || i > editor.viewport.cur_y + 1 {
+					if i < editor.viewport.cur_y {
 						append(&tmp[i], ..line[:])
 					} else if i == editor.viewport.cur_y {
 						append(&tmp[i], ..line[:min(editor.viewport.cur_x, cast(i32)len(line))])
@@ -145,6 +159,9 @@ handle_insert_mode :: proc(editor: ^Editor, editor_event: events.Event) -> (even
 							&tmp[i + 1],
 							..line[min(editor.viewport.cur_x, cast(i32)len(line)):],
 						)
+					}
+					if i > editor.viewport.cur_y + 1 {
+						append(&tmp[i], ..editor.buffer[i - 1][:])
 					}
 					log.info(transmute(string)tmp[i][:])
 				}
