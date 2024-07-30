@@ -8,5 +8,5 @@ main :: proc() {
 	renderer.init = editor.default_init
 	renderer.update = editor.default_updater
 	renderer.render = editor.default_renderer
-	editor.renderer_run(&renderer)
+	editor.run(&renderer)
 }

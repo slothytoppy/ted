@@ -33,14 +33,14 @@ Renderer :: struct($T: typeid) {
 	data:   T,
 	init:   proc() -> T,
 	update: proc(model: ^T, event: Event) -> Event,
-	render: proc(model: T) -> []string,
+	render: proc(model: T),
 }
 
 ChangeRenderer :: proc(
 	$T: typeid,
 	init: proc() -> T,
 	update: proc(t: ^T, event: Event) -> Event,
-	render: proc(t: T) -> []string,
+	render: proc(t: T),
 ) -> Renderer(T) {
 	return Renderer(T){{}, init, update, render}
 }

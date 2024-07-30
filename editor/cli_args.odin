@@ -18,6 +18,7 @@ Error :: enum {
 	help_request,
 }
 
+@(require_results)
 parse_cli_arguments :: proc(arg_info: ^Args_Info) -> Error {
 	// ignores first cli argument which is path_to_exe
 	args: []string = os.args
