@@ -51,13 +51,11 @@ move :: proc(#any_int y, x: i32) {
 	ncurses.move(y, x)
 }
 
-@(require_results)
-init_ncurses :: proc() -> (window: ^ncurses.Window) {
-	window = ncurses.initscr()
+init_ncurses :: proc() {
+	ncurses.initscr()
 	ncurses.keypad(ncurses.stdscr, true)
-	ncurses.raw()
+	ncurses.noraw()
 	ncurses.noecho()
-	return window
 }
 
 deinit_ncurses :: proc() {
@@ -80,11 +78,8 @@ mvprint :: proc(#any_int y, x: i32, str: cstring) {
 
 // removes a char at line cur_y, cur_x-1
 delete_char :: proc(editor: ^Editor) {
-	buffer.buffer_remove_byte_at(
-		&editor.buffer,
-		editor.viewport.cur_y,
-		saturating_sub(editor.viewport.cur_x, 1),
-	)
+	editor.cursor.x = saturating_sub(editor.cursor.x, 1)
+	buffer.buffer_remove_byte_at(&editor.buffer, editor.cursor.y, editor.cursor.x)
 }
 
 // clear and refreshes screen

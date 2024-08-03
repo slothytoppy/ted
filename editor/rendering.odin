@@ -1,7 +1,7 @@
 package editor
 
 import "../buffer"
-import "./events"
+import "../tui"
 import "core:flags"
 import "core:log"
 import "core:os"
@@ -33,35 +33,36 @@ default_init :: proc() -> (editor: Editor) {
 	return editor
 }
 
-handle_arrow_keys :: proc(editor: ^Editor, editor_event: events.Event) -> (event: events.Event) {
+/*
+handle_arrow_keys :: proc(editor: ^Editor, editor_event: tui.Event) -> (event: tui.Event) {
 	#partial switch e in editor_event {
-	case events.KeyboardEvent:
+	case tui.KeyEvent:
 		switch e.key {
 		case "KEY_LEFT":
-			if editor.viewport.cur_x > 0 {
-				editor.viewport.cur_x -= 1
+			if editor.cursor.x > 0 {
+				editor.cursor.x -= 1
 				event = events.UpdateCursorEvent{}
 			}
 		case "KEY_RIGHT":
-			if editor.viewport.cur_x < editor.viewport.max_x {
-				editor.viewport.cur_x += 1
+			if editor.cursor.x < editor.viewport.max_x {
+				editor.cursor.x += 1
 				event = events.UpdateCursorEvent{}
 			}
 		case "KEY_UP":
-			if editor.viewport.cur_y > 0 {
-				editor.viewport.cur_y = saturating_sub(editor.viewport.cur_y, 1)
+			if editor.cursor.y > 0 {
+				editor.cursor.y = saturating_sub(editor.cursor.y, 1)
 				event = events.UpdateCursorEvent{}
 			}
-			if editor.viewport.cur_y >= 0 && editor.viewport.scroll_y > 0 {
+			if editor.cursor.y >= 0 && editor.viewport.scroll_y > 0 {
 				log.info("scrolling up")
 				editor.viewport.scroll_y = saturating_sub(editor.viewport.scroll_y, 1)
 				event = events.UpdateCursorEvent{}
 			}
-			log.info("cur_y:", editor.viewport.cur_y, "scroll_y:", editor.viewport.scroll_y)
+			log.info("cur_y:", editor.cursor.y, "scroll_y:", editor.viewport.scroll_y)
 		case "KEY_DOWN":
-			editor.viewport.cur_y = saturating_add(editor.viewport.cur_y, 1, editor.viewport.max_y)
+			editor.cursor.y = saturating_add(editor.cursor.y, 1, editor.viewport.max_y)
 			event = events.UpdateCursorEvent{}
-			if editor.viewport.cur_y < editor.viewport.max_y {
+			if editor.cursor.y < editor.viewport.max_y {
 				break
 			}
 			scroll_y := editor.viewport.scroll_y + editor.viewport.max_y
@@ -86,13 +87,13 @@ handle_normal_mode :: proc(editor: ^Editor, editor_event: events.Event) -> (even
 	case events.KeyboardEvent:
 		switch e.key {
 		case "backspace":
-			editor.viewport.cur_x = saturating_sub(editor.viewport.cur_x, 1)
+			editor.cursor.x = saturating_sub(editor.cursor.x, 1)
 			event = events.UpdateCursorEvent{}
-			if editor.viewport.cur_x <= 0 && editor.viewport.cur_y > 0 {
-				editor.viewport.cur_y = saturating_sub(editor.viewport.cur_y, 1)
-				editor.viewport.cur_x = min(
-					cast(i32)len(editor.buffer[editor.viewport.cur_y]),
-					editor.viewport.max_x,
+			if editor.cursor.x <= 0 && editor.cursor.y > 0 {
+				editor.cursor.y = saturating_sub(editor.cursor.y, 1)
+				editor.cursor.x = min(
+					cast(i32)len(editor.buffer[editor.cursor.y]),
+					editor.cursor.x,
 				)
 			}
 			event = events.UpdateCursorEvent{}
@@ -102,27 +103,29 @@ handle_normal_mode :: proc(editor: ^Editor, editor_event: events.Event) -> (even
 		case "I":
 			editor.mode = .insert
 		case "h":
-			editor.viewport.cur_x = saturating_sub(editor.viewport.cur_x, 1)
+			editor.cursor.x = saturating_sub(editor.cursor.x, 1)
 			event = events.UpdateCursorEvent{}
 		case "k":
-			editor.viewport.cur_y = saturating_sub(editor.viewport.cur_y, 1)
+			editor.cursor.y = saturating_sub(editor.cursor.y, 1)
 			event = events.UpdateCursorEvent{}
 		case "j":
-			editor.viewport.cur_y = saturating_add(editor.viewport.cur_y, 1, editor.viewport.max_y)
+			editor.cursor.y = saturating_add(editor.cursor.y, 1, editor.viewport.max_y)
 			event = events.UpdateCursorEvent{}
 		case "l":
-			editor.viewport.cur_x = saturating_add(editor.viewport.cur_x, 1, editor.viewport.max_x)
+			editor.cursor.x = saturating_add(editor.cursor.x, 1, editor.viewport.max_x)
 			event = events.UpdateCursorEvent{}
 		case "^":
-			editor.viewport.cur_x = 0
+			editor.cursor.x = 0
 			event = events.UpdateCursorEvent{}
 		case "$":
-			editor.viewport.cur_x = cast(i32)len(editor.buffer[editor.viewport.cur_y]) - 1
+			editor.cursor.x = cast(i32)len(editor.buffer[editor.cursor.y]) - 1
 			event = events.UpdateCursorEvent{}
 		case "O":
 			log.info("creating newline above is: unimplemented")
 		case "o":
 			log.info("creating newline below is: unimplemented")
+		case:
+			event = e
 		}
 	}
 	return event
@@ -133,10 +136,12 @@ handle_insert_mode :: proc(editor: ^Editor, editor_event: events.Event) -> (even
 	case events.KeyboardEvent:
 		switch e.key {
 		case "backspace":
-			if len(editor.buffer[editor.viewport.cur_y]) > 0 && editor.viewport.cur_x > 0 {
+			if len(editor.buffer[editor.cursor.y]) > 0 && editor.cursor.x > 0 {
 				delete_char(editor)
-				editor.viewport.cur_x = saturating_sub(editor.viewport.cur_x, 1)
-				event = events.UpdateCursorEvent{}
+				editor.cursor.x = saturating_sub(editor.cursor.x, 1)
+				event = events.KeyboardEvent {
+					key = "backspace",
+				}
 			}
 		case "control+c":
 			editor.mode = .normal
@@ -144,13 +149,13 @@ handle_insert_mode :: proc(editor: ^Editor, editor_event: events.Event) -> (even
 			tmp := make(buffer.Buffer, len(editor.buffer) + 1)
 			for line, i in editor.buffer {
 				i := cast(i32)i
-				if i < editor.viewport.cur_y {
+				if i < editor.cursor.y {
 					append(&tmp[i], ..line[:])
-				} else if i == editor.viewport.cur_y {
-					append(&tmp[i], ..line[:min(editor.viewport.cur_x, cast(i32)len(line))])
-					append(&tmp[i + 1], ..line[min(editor.viewport.cur_x, cast(i32)len(line)):])
+				} else if i == editor.cursor.y {
+					append(&tmp[i], ..line[:min(editor.cursor.x, cast(i32)len(line))])
+					append(&tmp[i + 1], ..line[min(editor.cursor.x, cast(i32)len(line)):])
 				}
-				if i > editor.viewport.cur_y + 1 {
+				if i > editor.cursor.y + 1 {
 					append(&tmp[i], ..editor.buffer[i - 1][:])
 				}
 				log.info(transmute(string)tmp[i][:])
@@ -160,21 +165,20 @@ handle_insert_mode :: proc(editor: ^Editor, editor_event: events.Event) -> (even
 			buffer.buffer_append_byte_at(
 				&editor.buffer,
 				e.key[0],
-				editor.viewport.cur_y,
-				editor.viewport.cur_x,
+				editor.cursor.y,
+				editor.cursor.x,
 			)
-			editor.viewport.cur_x = saturating_add(editor.viewport.cur_x, 1, editor.viewport.max_x)
-			event = events.UpdateCursorEvent{}
+			editor.cursor.x = saturating_add(editor.cursor.x, 1, editor.viewport.max_x)
+			event = events.KeyboardEvent {
+				key = transmute(string)e.key[0:1],
+			}
 		}
 	}
 	return event
 }
 
 default_updater :: proc(editor: ^Editor, editor_event: events.Event) -> (event: events.Event) {
-	switch e in editor_event {
-	case events.UpdateCursorEvent:
-		refresh_screen()
-	case events.Enter:
+	#partial switch e in editor_event {
 	case events.Nothing:
 		return events.Nothing{}
 	case events.KeyboardEvent:
@@ -217,3 +221,4 @@ default_renderer :: proc(editor: Editor) {
 		}
 	}
 }
+*/

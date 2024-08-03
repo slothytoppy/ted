@@ -5,7 +5,7 @@ import "core:os"
 
 Line :: #type [dynamic]byte
 
-Buffer :: #type [dynamic]Line
+Buffer :: distinct [dynamic]Line
 
 // for counting lines in a file
 count_lines :: proc(data: []byte) -> (lines_count: int) {

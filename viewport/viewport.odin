@@ -1,7 +1,8 @@
 package viewport
 
 // scroll command
-Command :: enum {
+Direction :: enum {
+	none,
 	up,
 	down,
 }
@@ -27,4 +28,13 @@ get_current_line :: proc(viewport: Viewport) -> i32 {
 
 get_current_row :: proc(viewport: Viewport) -> i32 {
 	return viewport.cur_x
+}
+
+should_scroll :: proc(viewport: Viewport, direction: Direction) -> Direction {
+	if viewport.cur_y <= 0 && direction == .up {
+		return .up
+	} else if viewport.cur_y > viewport.max_y && direction == .down {
+		return .down
+	}
+	return .none
 }
