@@ -1,0 +1,6 @@
+[submodule "todin"]
+	path = todin
+	url = https://github.com/slothytoppy/todin.git
+[submodule "deps/todin"]
+	path = deps/todin
+	url = https://github.com/slothytoppy/todin.git

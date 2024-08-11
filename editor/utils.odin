@@ -1,7 +1,6 @@
 package editor
 
 import "../buffer"
-import "../deps/ncurses"
 import "core:fmt"
 import "core:log"
 import "core:os"
@@ -25,6 +24,7 @@ logger_init :: proc(log_file: os.Handle) -> (logger: log.Logger) {
 	return logger
 }
 
+/*
 @(require_results)
 getmaxy :: proc() -> (y: i32) {
 	return ncurses.getmaxy(ncurses.stdscr)
@@ -38,7 +38,8 @@ getmaxx :: proc() -> (x: i32) {
 @(require_results)
 getmaxxy :: proc() -> (x, y: i32) {
 	y, x = ncurses.getmaxyx(ncurses.stdscr)
-	return x, y}
+	return x, y
+}
 
 @(require_results)
 getcuryx :: proc() -> (y, x: i32) {
@@ -61,12 +62,14 @@ init_ncurses :: proc() {
 deinit_ncurses :: proc() {
 	ncurses.endwin()
 }
+*/
 
 @(require_results)
 load_buffer_from_file :: proc(file: string) -> buffer.Buffer {
 	return buffer.load_buffer_from_file(file)
 }
 
+/*
 print :: proc(str: cstring) {
 	ncurses.printw("%s", str)
 }
@@ -75,13 +78,16 @@ print :: proc(str: cstring) {
 mvprint :: proc(#any_int y, x: i32, str: cstring) {
 	ncurses.mvprintw(y, x, "%s", str)
 }
+*/
 
 // removes a char at line cur_y, cur_x-1
 delete_char :: proc(editor: ^Editor) {
-	editor.cursor.x = saturating_sub(editor.cursor.x, 1)
-	buffer.buffer_remove_byte_at(&editor.buffer, editor.cursor.y, editor.cursor.x)
+	unimplemented()
+	//editor.cursor.x = saturating_sub(editor.cursor.x, 1)
+	//buffer.buffer_remove_byte_at(&editor.buffer, editor.cursor.y, editor.cursor.x)
 }
 
+/*
 // clear and refreshes screen
 clear_screen :: proc() {
 	ncurses.erase()
@@ -91,6 +97,7 @@ clear_screen :: proc() {
 refresh_screen :: proc() {
 	ncurses.refresh()
 }
+*/
 
 // helper for taking in some argument and turning it into a cstring
 @(require_results)
