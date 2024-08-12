@@ -17,7 +17,7 @@ default_init :: proc() -> (editor: Editor) {
 			os.exit(1)
 		}
 	}
-	//	editor.viewport.max_x, editor.viewport.max_y = getmaxxy()
+	editor.viewport.max_y, editor.viewport.max_x = todin.get_max_cursor_pos()
 	if cli_args.file == "" {
 		editor.buffer = make(buffer.Buffer, 1)
 	} else {
@@ -33,50 +33,37 @@ default_init :: proc() -> (editor: Editor) {
 	return editor
 }
 
-handle_arrow_keys :: proc(editor: ^Editor, editor_event: todin.Event) -> (event: todin.Event) {
+updater :: proc(editor: ^Editor, editor_event: todin.Event) -> (event: Event) {
+	todin_event: todin.Event
 	#partial switch e in editor_event {
-	case:
-		switch todin.key_to_string(e) {
-		case "left":
-			if editor.cursor.x > 0 {
-				editor.cursor.x -= 1
-				//event = events.UpdateCursorEvent{}
-			}
-		case "right":
-			if editor.cursor.x < editor.viewport.max_x {
-				editor.cursor.x += 1
-				//event = events.UpdateCursorEvent{}
-			}
-		case "up":
-			if editor.cursor.y > 0 {
-				editor.cursor.y = saturating_sub(editor.cursor.y, 1)
-				//event = events.UpdateCursorEvent{}
-			}
-			if editor.cursor.y >= 0 && editor.viewport.scroll_amount > 0 {
-				log.info("scrolling up")
-				editor.viewport.scroll_amount = saturating_sub(editor.viewport.scroll_amount, 1)
-				//event = events.UpdateCursorEvent{}
-			}
-			log.info("cur_y:", editor.cursor.y, "scroll_y:", editor.viewport.scroll_amount)
-		case "down":
+	case todin.Nothing:
+		todin_event = todin.Nothing{}
+		event = todin_event
+	case todin.ArrowKey:
+		switch e {
+		case .up:
+			editor.cursor.y = saturating_sub(editor.cursor.y, 1, editor.viewport.min_y)
+			todin.move_up()
+		case .down:
 			editor.cursor.y = saturating_add(editor.cursor.y, 1, editor.viewport.max_y)
-			//event = events.UpdateCursorEvent{}
-			if editor.cursor.y < editor.viewport.max_y {
-				break
-			}
-			scroll_y := editor.viewport.scroll_amount + editor.viewport.max_y
-			if scroll_y <= cast(i32)len(editor.buffer) {
-				editor.viewport.scroll_amount = saturating_add(
-					editor.viewport.scroll_amount,
-					1,
-					min(cast(i32)len(editor.buffer) - 1, scroll_y - 1),
-				)
-				//	event = events.UpdateCursorEvent{}
-			} else {
-				log.info("key_down: broke to outer loop:", scroll_y, editor.viewport.scroll_amount)
-				break
-			}
+			todin.move_down()
+		case .left:
+			editor.cursor.x = saturating_sub(editor.cursor.x, 1, editor.viewport.min_x)
+			todin.move_left()
+		case .right:
+			editor.cursor.x = saturating_add(editor.cursor.x, 1, editor.viewport.max_x)
+			todin.move_right()
 		}
+	case todin.Key:
+		if todin.event_to_string(e) == "<c-q>" {
+			return Quit{}
+		}
+	}
+	switch editor.mode {
+	case .normal:
+		return handle_normal_mode(editor, editor_event)
+	case .insert:
+		return handle_insert_mode(editor, editor_event)
 	}
 	return event
 }
@@ -84,62 +71,48 @@ handle_arrow_keys :: proc(editor: ^Editor, editor_event: todin.Event) -> (event:
 handle_normal_mode :: proc(editor: ^Editor, editor_event: todin.Event) -> (event: todin.Event) {
 	#partial switch e in editor_event {
 	case:
-		switch todin.key_to_string(e) {
+		switch todin.event_to_string(e) {
 		case "backspace":
-			editor.cursor.x = saturating_sub(editor.cursor.x, 1)
-			//event = events.UpdateCursorEvent{}
-			if editor.cursor.x <= 0 && editor.cursor.y > 0 {
-				editor.cursor.y = saturating_sub(editor.cursor.y, 1)
-				editor.cursor.x = min(
-					cast(i32)len(editor.buffer[editor.cursor.y]),
-					editor.cursor.x,
-				)
-			}
+			editor.cursor.x = saturating_sub(editor.cursor.x, 1, editor.viewport.min_x)
+			todin.move_left()
 		case "<c-s>":
 			buffer.write_buffer_to_file(editor.buffer, editor.current_file)
 			log.info("wrote to:", editor.current_file)
 		case "I":
 			editor.mode = .insert
 		case "h":
-			editor.cursor.x = saturating_sub(editor.cursor.x, 1)
-		//event = events.UpdateCursorEvent{}
+			editor.cursor.x = saturating_sub(editor.cursor.x, 1, editor.viewport.min_x)
 		case "k":
-			editor.cursor.y = saturating_sub(editor.cursor.y, 1)
-		//event = events.UpdateCursorEvent{}
+			editor.cursor.y = saturating_sub(editor.cursor.y, 1, editor.viewport.min_y)
 		case "j":
 			editor.cursor.y = saturating_add(editor.cursor.y, 1, editor.viewport.max_y)
-		//event = events.UpdateCursorEvent{}
 		case "l":
 			editor.cursor.x = saturating_add(editor.cursor.x, 1, editor.viewport.max_x)
-		//event = events.UpdateCursorEvent{}
 		case "^":
 			editor.cursor.x = 0
-		//event = events.UpdateCursorEvent{}
 		case "$":
 			editor.cursor.x = cast(i32)len(editor.buffer[editor.cursor.y]) - 1
-		//event = events.UpdateCursorEvent{}
 		case "O":
 			log.info("creating newline above is: unimplemented")
 		case "o":
 			log.info("creating newline below is: unimplemented")
-
-		//event = events.UpdateCursorEvent{}
 		}
 	}
 	return event
 }
 
-handle_insert_mode :: proc(editor: ^Editor, editor_event: todin.Event) -> (event: todin.Event) {
+handle_insert_mode :: proc(editor: ^Editor, editor_event: todin.Event) -> (event: Event) {
 	#partial switch e in editor_event {
-	case todin.Key:
-		switch todin.key_to_string(e) {
-		case "backspace":
-			if len(editor.buffer[editor.cursor.y]) > 0 && editor.cursor.x > 0 {
+	case todin.BackSpace:
+		if editor.cursor.x <= cast(i32)len(editor.buffer[editor.cursor.y + 1]) {
+			if editor.cursor.x > 0 {
 				delete_char(editor)
-				editor.cursor.x = saturating_sub(editor.cursor.x, 1)
-				event = todin.BackSpace{}
+				return Refresh{}
 			}
-		case "control+c":
+		}
+	case todin.Key:
+		switch todin.event_to_string(e) {
+		case "<c-c>":
 			editor.mode = .normal
 		case "enter":
 			tmp := make(buffer.Buffer, len(editor.buffer) + 1)
@@ -154,59 +127,28 @@ handle_insert_mode :: proc(editor: ^Editor, editor_event: todin.Event) -> (event
 				if i > editor.cursor.y + 1 {
 					append(&tmp[i], ..editor.buffer[i - 1][:])
 				}
-				log.info(transmute(string)tmp[i][:])
 			}
 			editor.buffer = tmp
+			return Refresh{}
 		case:
 			buffer.buffer_append_byte_at(
 				&editor.buffer,
 				u8(e.keyname),
-				editor.cursor.y,
+				editor.cursor.y + 1,
 				editor.cursor.x,
 			)
 			editor.cursor.x = saturating_add(editor.cursor.x, 1, editor.viewport.max_x)
-			event = todin.Key{e.keyname, false}
+			return Refresh{}
 		}
-	case:
-		event = e
-	}
-	return event
-}
-
-updater :: proc(editor: ^Editor, editor_event: todin.Event) -> (event: todin.Event) {
-	#partial switch e in editor_event {
-	case todin.Nothing:
-		return todin.Nothing{}
-	case todin.Key:
-		switch todin.key_to_string(e) {
-		case "<c-q>":
-			return e
-		}
-	/*
-		if e.key == "control+q" {
-			event = events.Quit{}
-		} else {
-			switch (e.key) {
-			case "KEY_RIGHT", "KEY_UP", "KEY_DOWN", "KEY_LEFT":
-				event = handle_arrow_keys(editor, editor_event)
-			case:
-				switch editor.mode {
-				case .normal:
-					event = handle_normal_mode(editor, editor_event)
-				case .insert:
-					event = handle_insert_mode(editor, editor_event)
-				}
-			}
-		}
-	case events.Quit:
-		event = events.Quit{}
-    */
 	}
 	return event
 }
 
 renderer :: proc(editor: Editor) {
 	should_log := true
+	//log.info("called renderer")
+	todin.clear_screen()
+	todin.reset_cursor()
 	for i in 0 ..< editor.viewport.max_y + editor.viewport.scroll_amount {
 		idx: i32 = saturating_add(
 			i,
@@ -219,11 +161,13 @@ renderer :: proc(editor: Editor) {
 		}
 		if idx == cast(i32)len(editor.buffer) - 1 && should_log == true {
 			should_log = false
-			log.info("idx", idx, string(editor.buffer[idx][:]))
+			//	log.info("idx", idx, string(editor.buffer[idx][:]))
 		}
 		todin.move(i + 1, 0)
 		if idx == cast(i32)len(editor.buffer) - 1 {
 			break
 		}
 	}
+	todin.move(editor.cursor.y + 1, editor.cursor.x)
+	log.info(editor.cursor)
 }

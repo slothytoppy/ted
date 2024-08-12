@@ -1,7 +1,6 @@
 package editor
 
 import "../buffer"
-import "core:fmt"
 import "core:log"
 import "core:os"
 
@@ -24,85 +23,16 @@ logger_init :: proc(log_file: os.Handle) -> (logger: log.Logger) {
 	return logger
 }
 
-/*
-@(require_results)
-getmaxy :: proc() -> (y: i32) {
-	return ncurses.getmaxy(ncurses.stdscr)
-}
-
-@(require_results)
-getmaxx :: proc() -> (x: i32) {
-	return ncurses.getmaxx(ncurses.stdscr)
-}
-
-@(require_results)
-getmaxxy :: proc() -> (x, y: i32) {
-	y, x = ncurses.getmaxyx(ncurses.stdscr)
-	return x, y
-}
-
-@(require_results)
-getcuryx :: proc() -> (y, x: i32) {
-	x = ncurses.getcurx(ncurses.stdscr)
-	y = ncurses.getcury(ncurses.stdscr)
-	return y, x
-}
-
-move :: proc(#any_int y, x: i32) {
-	ncurses.move(y, x)
-}
-
-init_ncurses :: proc() {
-	ncurses.initscr()
-	ncurses.keypad(ncurses.stdscr, true)
-	ncurses.noraw()
-	ncurses.noecho()
-}
-
-deinit_ncurses :: proc() {
-	ncurses.endwin()
-}
-*/
-
 @(require_results)
 load_buffer_from_file :: proc(file: string) -> buffer.Buffer {
 	return buffer.load_buffer_from_file(file)
 }
 
-/*
-print :: proc(str: cstring) {
-	ncurses.printw("%s", str)
-}
-
-// uses y, x for compatability with ncurses
-mvprint :: proc(#any_int y, x: i32, str: cstring) {
-	ncurses.mvprintw(y, x, "%s", str)
-}
-*/
-
 // removes a char at line cur_y, cur_x-1
 delete_char :: proc(editor: ^Editor) {
-	unimplemented()
-	//editor.cursor.x = saturating_sub(editor.cursor.x, 1)
-	//buffer.buffer_remove_byte_at(&editor.buffer, editor.cursor.y, editor.cursor.x)
-}
-
-/*
-// clear and refreshes screen
-clear_screen :: proc() {
-	ncurses.erase()
-	ncurses.refresh()
-}
-
-refresh_screen :: proc() {
-	ncurses.refresh()
-}
-*/
-
-// helper for taking in some argument and turning it into a cstring
-@(require_results)
-format_to_cstring :: proc(args: ..any) -> cstring {
-	return fmt.ctprint(..args)
+	editor.cursor.x = saturating_sub(editor.cursor.x, 1, 0)
+	log.info(len(editor.buffer[editor.cursor.y + 1]))
+	buffer.buffer_remove_byte_at(&editor.buffer, editor.cursor.y + 1, editor.cursor.x)
 }
 
 @(require_results)
@@ -117,11 +47,13 @@ editor_max :: proc(#any_int val, max_value: i32) -> i32 {
 }
 
 @(require_results)
-saturating_sub :: proc(#any_int a, b: i32) -> i32 {
-	if a - b > 0 {
-		return a - b
+saturating_sub :: proc(#any_int val, amount, max: i32) -> i32 {
+	if val - amount > max {
+		log.info("val-amount:", val - amount)
+		return val - amount
 	}
-	return 0
+	log.info("max:", max)
+	return max
 }
 
 @(require_results)

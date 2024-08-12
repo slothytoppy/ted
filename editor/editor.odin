@@ -18,6 +18,15 @@ Viewport :: struct {
 	min_x, min_y, max_x, max_y, scroll_amount: i32,
 }
 
+Quit :: struct {}
+Refresh :: struct {}
+
+Event :: union {
+	todin.Event,
+	Quit,
+	Refresh,
+}
+
 Editor :: struct {
 	current_file: string,
 	cursor:       Cursor,
@@ -43,52 +52,34 @@ run :: proc(editor: ^Editor) {
 		max_x = editor.viewport.max_x,
 		max_y = editor.viewport.max_y,
 	}
+	log.info(vp)
 	log.info(args_info)
 	tui_event: todin.Event
 	renderer(editor^)
-	log.info(vp)
 	loop: for {
 		if !todin.poll() {
 			continue
 		}
 		tui_event = todin.read()
 		event := updater(editor, tui_event)
-		if tui_event == nil {
-			continue
-		}
-		#partial switch e in event {
-		case todin.Nothing:
-			continue
-		}
-		log.info(event)
 		switch e in event {
-		case todin.Nothing:
-			continue
-		case todin.Key:
-			key_str := todin.key_to_string(e)
-			if key_str == "<c-q>" {
-				break loop
-			}
-			log.info("key", e.keyname)
-		case todin.Resize:
-		case todin.ArrowKey:
-		case todin.EscapeKey:
-		case todin.BackSpace:
-		case todin.FunctionKey:
-		/*
-		case tui.Cursor:
-			log.info("cursor")
-			tui.move(e.y, e.x)
-			tui.refresh()
-      */
-		/*
-		case todin.Render:
-			log.info("render")
-			tui.render(editor.buffer[:], vp, e)
-		case tui.Quit:
-			log.info("quit")
+		case Quit:
 			break loop
-      */
+		case Refresh:
+			renderer(editor^)
+		case todin.Event:
+			switch todin_event in e {
+			case todin.Nothing:
+				continue
+			case todin.Key:
+				log.info("key", todin_event.keyname)
+			case todin.Resize:
+			case todin.ArrowKey:
+				log.info("arrow key:", e)
+			case todin.EscapeKey:
+			case todin.BackSpace:
+			case todin.FunctionKey:
+			}
 		}
 	}
 	todin.leave_alternate_screen()
