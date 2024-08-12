@@ -1,87 +1,165 @@
 package editor
 
-import "../buffer"
 import "../deps/todin"
+import "core:flags"
 import "core:log"
 import "core:os"
 
-Mode :: enum {
-	normal,
-	insert,
-}
-
-Cursor :: struct {
-	y, x: i32,
-}
-
 Viewport :: struct {
-	min_x, min_y, max_x, max_y, scroll_amount: i32,
+	min_x, max_x, min_y, max_y, scroll: i32,
+}
+
+Editor :: struct {
+	buffer:   Buffer,
+	cursor:   Cursor,
+	viewport: Viewport,
 }
 
 Quit :: struct {}
-Refresh :: struct {}
 
 Event :: union {
 	todin.Event,
 	Quit,
-	Refresh,
 }
 
-Editor :: struct {
-	current_file: string,
-	cursor:       Cursor,
-	viewport:     Viewport,
-	buffer:       buffer.Buffer,
-	mode:         Mode,
+deinit :: proc() {
+	todin.leave_alternate_screen()
+	todin.deinit()
+}
+
+update :: proc(editor: ^Editor, event: Event) -> (new_event: Event) {
+	todin_event: todin.Event = todin.Nothing{}
+	switch e in event {
+	case todin.Event:
+		#partial switch event in e {
+		case todin.Key:
+			switch todin.event_to_string(e) {
+			case "backspace":
+				delete_char(&editor.buffer, editor.cursor, editor.viewport)
+				todin_event = todin.BackSpace{}
+				new_event = todin_event
+			case "<c-q>":
+				return Quit{}
+			}
+		case todin.ArrowKey:
+			switch event {
+			case .up:
+				if editor.cursor.y == 0 {
+					editor.viewport.scroll = saturating_sub(editor.viewport.scroll, 1, 0)
+				}
+				move_up(&editor.cursor)
+				todin.move_up()
+			case .down:
+				if editor.cursor.y == editor.viewport.max_y {
+					editor.viewport.scroll += 1
+				}
+				move_down(&editor.cursor, editor.viewport)
+				todin.move_down()
+			case .left:
+				move_left(&editor.cursor)
+				todin.move_left()
+			case .right:
+				move_right(&editor.cursor, editor.viewport)
+				todin.move_right()
+			}
+			todin_event = event
+			new_event = todin_event
+		}
+	case Quit:
+		break
+	}
+	return nil
 }
 
 run :: proc(editor: ^Editor) {
-	args_info: Args_Info
-	error := parse_cli_arguments(&args_info)
-	switch error {
-	case .parse_error, .open_file_error, .validation_error:
+	arg_info: Args_Info
+	error := parse_cli_arguments(&arg_info)
+	switch e in error {
+	case flags.Parse_Error, flags.Help_Request, flags.Open_File_Error, flags.Validation_Error:
+		print_error(error)
 		os.exit(1)
-	case .none, .help_request:
-		break
 	}
-	context.logger = logger_init(args_info.log_file)
+	context.logger = log.create_file_logger(arg_info.log_file)
+	editor.buffer = init_buffer_from_file(arg_info.file)
+	editor.viewport.max_y, editor.viewport.max_x = todin.get_max_cursor_pos()
 	todin.init()
 	todin.enter_alternate_screen()
-	editor^ = default_init()
-	vp: Viewport = {
-		max_x = editor.viewport.max_x,
-		max_y = editor.viewport.max_y,
-	}
-	log.info(vp)
-	log.info(args_info)
-	tui_event: todin.Event
-	renderer(editor^)
+
 	loop: for {
-		if !todin.poll() {
+		if todin.poll() {
+			event: Event = todin.read()
+			event = update(editor, event)
+			switch e in event {
+			case todin.Event:
+			case Quit:
+				break loop
+			}
+			render(editor.buffer, editor.viewport)
+		}
+	}
+	deinit()
+}
+
+render :: proc(buff: Buffer, viewport: Viewport) {
+	todin.save_cursor_pos()
+	todin.clear_screen()
+	todin.reset_cursor()
+
+	scroll_lines := viewport.scroll
+	scroll_amount := 0
+	for cell, i in buff {
+		if cell.datum.keyname == '\n' {
+			scroll_amount = i
+			scroll_lines -= 1
+		}
+		if scroll_lines == 0 {
+			break
+		}
+	}
+	log.info("scroll amount:", scroll_amount)
+
+	col := 0
+	// scroll amount is an offset into a 1d array, it allows us to do scrolling while having all the fun of manually dealing with adding "lines" to a 1d array!
+	log.info(scroll_amount, cast(int)(viewport.max_y * viewport.max_x) + scroll_amount)
+	for i in scroll_amount ..< cast(int)(viewport.max_y * viewport.max_x) + scroll_amount {
+		if i > len(buff) - 1 {
+			break
+		}
+
+		if cast(i32)col > viewport.max_x {
+			col = 0
 			continue
 		}
-		tui_event = todin.read()
-		event := updater(editor, tui_event)
-		switch e in event {
-		case Quit:
-			break loop
-		case Refresh:
-			renderer(editor^)
-		case todin.Event:
-			switch todin_event in e {
-			case todin.Nothing:
+
+		cell := buff[i]
+		switch cell.datum.keyname {
+		case '\n':
+			col = 0
+			todin.move_to_start_of_next_line()
+		case '\t':
+			// TODO: make this configurable
+			todin.print("   ")
+		case:
+			if cell.datum.control {
 				continue
-			case todin.Key:
-				log.info("key", todin_event.keyname)
-			case todin.Resize:
-			case todin.ArrowKey:
-				log.info("arrow key:", e)
-			case todin.EscapeKey:
-			case todin.BackSpace:
-			case todin.FunctionKey:
 			}
+			todin.print(cell.datum.keyname)
 		}
+		col += 1
 	}
-	todin.leave_alternate_screen()
-	todin.deinit()
+	todin.restore_cursor_pos()
+}
+
+@(require_results)
+saturating_add :: proc(val, amount, max: $T) -> T {
+	return val + amount > max ? val - amount : max
+}
+
+@(require_results)
+saturating_sub :: proc(val, amount, min: $T) -> T {
+	return val - amount < min ? val - amount : min
+}
+
+delete_char :: proc(buffer: ^Buffer, cursor: Cursor, viewport: Viewport) {
+	ordered_remove(buffer, cast(int)(cursor.y * cursor.x * viewport.max_x))
 }

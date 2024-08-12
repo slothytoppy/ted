@@ -19,7 +19,7 @@ Error :: enum {
 }
 
 @(require_results)
-parse_cli_arguments :: proc(arg_info: ^Args_Info) -> Error {
+parse_cli_arguments :: proc(arg_info: ^Args_Info) -> flags.Error {
 	// ignores first cli argument which is path_to_exe
 	args: []string = os.args
 	// what flags.parse_or_exit does but i have to do this myself
@@ -30,18 +30,22 @@ parse_cli_arguments :: proc(arg_info: ^Args_Info) -> Error {
 	switch specific_error in error {
 	case flags.Parse_Error:
 		fmt.println("parsing error")
-		return .parse_error
+		return specific_error
 	case flags.Open_File_Error:
 		fmt.println("open file error")
-		return .open_file_error
+		return specific_error
 	case flags.Validation_Error:
 		if arg_info.file == "" {
 			fmt.println("empty")
 		}
 		fmt.println("validation error")
-		return .validation_error
+		return specific_error
 	case flags.Help_Request:
-		return .help_request
+		return specific_error
 	}
-	return .none
+	return nil
+}
+
+print_error :: proc(error: flags.Error) {
+	flags.print_errors(Args_Info, error, "todin")
 }
