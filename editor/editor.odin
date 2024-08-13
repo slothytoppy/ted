@@ -44,17 +44,19 @@ update :: proc(editor: ^Editor, event: Event) -> (new_event: Event) {
 		case todin.ArrowKey:
 			switch event {
 			case .up:
+				move_up(&editor.cursor)
+				log.info(editor.viewport.scroll)
+				todin.move_up()
 				if editor.cursor.y == 0 {
 					editor.viewport.scroll = saturating_sub(editor.viewport.scroll, 1, 0)
 				}
-				move_up(&editor.cursor)
-				todin.move_up()
 			case .down:
-				if editor.cursor.y == editor.viewport.max_y {
-					editor.viewport.scroll += 1
-				}
 				move_down(&editor.cursor, editor.viewport)
 				todin.move_down()
+				if editor.cursor.y >= editor.viewport.max_y {
+					editor.viewport.scroll += 1
+				}
+				log.info(editor.viewport.scroll)
 			case .left:
 				move_left(&editor.cursor)
 				todin.move_left()
@@ -64,9 +66,10 @@ update :: proc(editor: ^Editor, event: Event) -> (new_event: Event) {
 			}
 			todin_event = event
 			new_event = todin_event
+			return new_event
 		}
 	case Quit:
-		break
+		return Quit{}
 	}
 	return nil
 }
@@ -85,6 +88,8 @@ run :: proc(editor: ^Editor) {
 	todin.init()
 	todin.enter_alternate_screen()
 
+	render(editor.buffer, editor.viewport)
+	todin.move(editor.cursor.y, editor.cursor.x)
 	loop: for {
 		if todin.poll() {
 			event: Event = todin.read()
@@ -95,69 +100,71 @@ run :: proc(editor: ^Editor) {
 				break loop
 			}
 			render(editor.buffer, editor.viewport)
+			todin.move(editor.cursor.y, editor.cursor.x)
 		}
 	}
 	deinit()
 }
 
 render :: proc(buff: Buffer, viewport: Viewport) {
-	todin.save_cursor_pos()
 	todin.clear_screen()
 	todin.reset_cursor()
 
-	scroll_lines := viewport.scroll
-	scroll_amount := 0
-	for cell, i in buff {
-		if cell.datum.keyname == '\n' {
-			scroll_amount = i
-			scroll_lines -= 1
-		}
-		if scroll_lines == 0 {
-			break
+	// scroll amount is an offset into a 1d array, it allows us to do scrolling while having all the fun of manually dealing with adding "lines" to a 1d array!
+
+	idx: int
+	scroll_amount := viewport.scroll
+
+	if viewport.scroll > 0 {
+		for cell, i in buff {
+			if scroll_amount <= 0 {
+				break
+			}
+			if cell.datum.keyname == '\n' {
+				idx = i
+				scroll_amount -= 1
+			}
 		}
 	}
-	log.info("scroll amount:", scroll_amount)
 
-	col := 0
-	// scroll amount is an offset into a 1d array, it allows us to do scrolling while having all the fun of manually dealing with adding "lines" to a 1d array!
-	log.info(scroll_amount, cast(int)(viewport.max_y * viewport.max_x) + scroll_amount)
-	for i in scroll_amount ..< cast(int)(viewport.max_y * viewport.max_x) + scroll_amount {
-		if i > len(buff) - 1 {
+	if idx >= len(buff) {
+		return
+	}
+
+	lines_count: i32 = 0
+	for i in idx ..< len(buff[:]) {
+		cell := buff[i]
+		if lines_count >= viewport.max_y {
 			break
 		}
-
-		if cast(i32)col > viewport.max_x {
-			col = 0
-			continue
-		}
-
-		cell := buff[i]
 		switch cell.datum.keyname {
 		case '\n':
-			col = 0
+			lines_count += 1
 			todin.move_to_start_of_next_line()
 		case '\t':
 			// TODO: make this configurable
 			todin.print("   ")
 		case:
-			if cell.datum.control {
-				continue
-			}
 			todin.print(cell.datum.keyname)
 		}
-		col += 1
 	}
-	todin.restore_cursor_pos()
+	log.info("renderer:", lines_count, idx, viewport.scroll)
 }
 
 @(require_results)
 saturating_add :: proc(val, amount, max: $T) -> T {
-	return val + amount > max ? val - amount : max
+	if val + amount < max {
+		return val + amount
+	}
+	return max
 }
 
 @(require_results)
 saturating_sub :: proc(val, amount, min: $T) -> T {
-	return val - amount < min ? val - amount : min
+	if val - amount > min {
+		return val - amount
+	}
+	return min
 }
 
 delete_char :: proc(buffer: ^Buffer, cursor: Cursor, viewport: Viewport) {
