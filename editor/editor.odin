@@ -32,12 +32,12 @@ update :: proc(editor: ^Editor, event: Event) -> (new_event: Event) {
 	switch e in event {
 	case todin.Event:
 		#partial switch event in e {
+		case todin.BackSpace:
+			delete_char(&editor.buffer, editor.cursor, editor.viewport)
+			todin_event = todin.BackSpace{}
+			new_event = todin_event
 		case todin.Key:
 			switch todin.event_to_string(e) {
-			case "backspace":
-				delete_char(&editor.buffer, editor.cursor, editor.viewport)
-				todin_event = todin.BackSpace{}
-				new_event = todin_event
 			case "<c-q>":
 				return Quit{}
 			}
@@ -148,7 +148,6 @@ render :: proc(buff: Buffer, viewport: Viewport) {
 			todin.print(cell.datum.keyname)
 		}
 	}
-	log.info("renderer:", lines_count, idx, viewport.scroll)
 }
 
 @(require_results)
@@ -168,5 +167,21 @@ saturating_sub :: proc(val, amount, min: $T) -> T {
 }
 
 delete_char :: proc(buffer: ^Buffer, cursor: Cursor, viewport: Viewport) {
-	ordered_remove(buffer, cast(int)(cursor.y * cursor.x * viewport.max_x))
+	line := 0
+	y := 0
+	for cell, i in buffer {
+		if cast(i32)line == max(cursor.y - 1, 0) {
+			log.info(y)
+			break
+		}
+		switch cell.datum.keyname {
+		case '\n':
+			y = i
+			line += 1
+		}
+	}
+	if y + cast(int)cursor.x > len(buffer) {
+		return
+	}
+	ordered_remove(buffer, cast(int)(y + cast(int)cursor.x))
 }

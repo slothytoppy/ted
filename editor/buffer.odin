@@ -15,7 +15,6 @@ init_buffer_from_file :: proc(file: string) -> (buffer: Buffer) {
 	if err == false {
 		os.exit(1)
 	}
-	buffer = make(Buffer, len(data))
 	is_control: bool
 	for b in data {
 		key := b
