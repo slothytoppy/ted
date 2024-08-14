@@ -10,9 +10,10 @@ Viewport :: struct {
 }
 
 Editor :: struct {
-	buffer:   Buffer,
-	cursor:   Cursor,
-	viewport: Viewport,
+	buffer:      Buffer,
+	cursor:      Cursor,
+	viewport:    Viewport,
+	text_buffer: TextBuffer,
 }
 
 Quit :: struct {}
@@ -44,6 +45,7 @@ update :: proc(editor: ^Editor, event: Event) -> (new_event: Event) {
 		case todin.ArrowKey:
 			switch event {
 			case .up:
+				log.info(editor.cursor.y)
 				move_up(&editor.cursor)
 				log.info(editor.viewport.scroll)
 				todin.move_up()
@@ -53,10 +55,20 @@ update :: proc(editor: ^Editor, event: Event) -> (new_event: Event) {
 			case .down:
 				move_down(&editor.cursor, editor.viewport)
 				todin.move_down()
+
 				if editor.cursor.y >= editor.viewport.max_y {
-					editor.viewport.scroll += 1
+
+					if editor.viewport.scroll + editor.viewport.max_y <=
+					   cast(i32)len(editor.text_buffer.line_idx) {
+						editor.viewport.scroll = saturating_add(
+							editor.viewport.scroll,
+							1,
+							cast(i32)len(editor.text_buffer.line_idx),
+						)
+					}
+
 				}
-				log.info(editor.viewport.scroll)
+				log.info(editor.viewport.scroll, len(editor.text_buffer.line_idx))
 			case .left:
 				move_left(&editor.cursor)
 				todin.move_left()
@@ -82,13 +94,14 @@ run :: proc(editor: ^Editor) {
 		print_error(error)
 		os.exit(1)
 	}
-	context.logger = log.create_file_logger(arg_info.log_file)
+	context.logger = log.create_file_logger(arg_info.log_file, log.Level.Info)
 	editor.buffer = init_buffer_from_file(arg_info.file)
 	editor.viewport.max_y, editor.viewport.max_x = todin.get_max_cursor_pos()
 	todin.init()
 	todin.enter_alternate_screen()
-
-	render(editor.buffer, editor.viewport)
+	editor.text_buffer = init_text_buffer(editor.buffer)
+	log.info(editor.text_buffer.line_idx)
+	render(editor.buffer, editor.viewport, editor.text_buffer)
 	todin.move(editor.cursor.y, editor.cursor.x)
 	loop: for {
 		if todin.poll() {
@@ -99,32 +112,23 @@ run :: proc(editor: ^Editor) {
 			case Quit:
 				break loop
 			}
-			render(editor.buffer, editor.viewport)
+			render(editor.buffer, editor.viewport, editor.text_buffer)
 			todin.move(editor.cursor.y, editor.cursor.x)
 		}
 	}
 	deinit()
 }
 
-render :: proc(buff: Buffer, viewport: Viewport) {
+render :: proc(buff: Buffer, viewport: Viewport, text_buffer: TextBuffer) {
 	todin.clear_screen()
 	todin.reset_cursor()
 
 	// scroll amount is an offset into a 1d array, it allows us to do scrolling while having all the fun of manually dealing with adding "lines" to a 1d array!
 
 	idx: int
-	scroll_amount := viewport.scroll
 
-	if viewport.scroll > 0 {
-		for cell, i in buff {
-			if scroll_amount <= 0 {
-				break
-			}
-			if cell.datum.keyname == '\n' {
-				idx = i
-				scroll_amount -= 1
-			}
-		}
+	if viewport.scroll > 0 && viewport.scroll <= cast(i32)len(text_buffer.line_idx) {
+		idx = text_buffer.line_idx[viewport.scroll]
 	}
 
 	if idx >= len(buff) {
@@ -132,6 +136,7 @@ render :: proc(buff: Buffer, viewport: Viewport) {
 	}
 
 	lines_count: i32 = 0
+	last_idx: int
 	for i in idx ..< len(buff[:]) {
 		cell := buff[i]
 		if lines_count >= viewport.max_y {
@@ -148,40 +153,4 @@ render :: proc(buff: Buffer, viewport: Viewport) {
 			todin.print(cell.datum.keyname)
 		}
 	}
-}
-
-@(require_results)
-saturating_add :: proc(val, amount, max: $T) -> T {
-	if val + amount < max {
-		return val + amount
-	}
-	return max
-}
-
-@(require_results)
-saturating_sub :: proc(val, amount, min: $T) -> T {
-	if val - amount > min {
-		return val - amount
-	}
-	return min
-}
-
-delete_char :: proc(buffer: ^Buffer, cursor: Cursor, viewport: Viewport) {
-	line := 0
-	y := 0
-	for cell, i in buffer {
-		if cast(i32)line == max(cursor.y - 1, 0) {
-			log.info(y)
-			break
-		}
-		switch cell.datum.keyname {
-		case '\n':
-			y = i
-			line += 1
-		}
-	}
-	if y + cast(int)cursor.x > len(buffer) {
-		return
-	}
-	ordered_remove(buffer, cast(int)(y + cast(int)cursor.x))
 }
