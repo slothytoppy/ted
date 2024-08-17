@@ -10,38 +10,45 @@ Args_Info :: struct {
 	position: int `args:"name=pos" usage:"start editing at line <num>"`,
 }
 
-Error :: enum {
+EditorError :: enum {
 	none,
-	parse_error,
-	open_file_error,
-	validation_error,
-	help_request,
+	no_file,
+	file_doesnt_exist,
+}
+
+Error :: union {
+	EditorError,
+	flags.Error,
 }
 
 @(require_results)
-parse_cli_arguments :: proc(arg_info: ^Args_Info) -> flags.Error {
+parse_cli_arguments :: proc(arg_info: ^Args_Info) -> Error {
 	// ignores first cli argument which is path_to_exe
 	args: []string = os.args
+	flags_error: flags.Error
 	// what flags.parse_or_exit does but i have to do this myself
+	if len(os.args) == 1 {
+		return .no_file
+	}
 	if len(os.args) > 1 {
 		args = args[1:]
 	}
 	error := flags.parse(arg_info, args)
 	switch specific_error in error {
-	case flags.Parse_Error:
-		fmt.println("parsing error")
-		return specific_error
-	case flags.Open_File_Error:
-		fmt.println("open file error")
+	case flags.Parse_Error, flags.Open_File_Error, flags.Help_Request:
 		return specific_error
 	case flags.Validation_Error:
-		if arg_info.file == "" {
-			fmt.println("empty")
+		flags_error = specific_error
+		return flags_error
+	}
+	switch arg_info.file {
+	case "":
+		return .file_doesnt_exist
+	case:
+		if !os.exists(arg_info.file) {
+			return .file_doesnt_exist
 		}
-		fmt.println("validation error")
-		return specific_error
-	case flags.Help_Request:
-		return specific_error
+		return .none
 	}
 	return nil
 }

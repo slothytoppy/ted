@@ -1,5 +1,8 @@
 package editor
 
+import "core:log"
+import "core:mem"
+
 @(require_results)
 saturating_add :: proc(val, amount, max: $T) -> T {
 	if val + amount < max {
