@@ -5,7 +5,6 @@ import "core:log"
 
 normal_mode :: proc(editor: ^Editor, event: Event) {
 	event_to_string: string
-	defer delete(event_to_string)
 	switch e in event {
 	case todin.Event:
 		event_to_string = todin.event_to_string(e)
@@ -14,17 +13,17 @@ normal_mode :: proc(editor: ^Editor, event: Event) {
 			editor.mode = .insert
 			log.info(editor.mode)
 		case "k":
-			move_up(&editor.cursor)
+			editor_move_up(editor)
 		case "j":
-			move_down(&editor.cursor, editor.viewport)
+			editor_move_down(editor)
 		case "h":
-			move_left(&editor.cursor)
+			editor_move_left(editor)
 		case "l":
-			move_right(&editor.cursor, editor.viewport)
+			editor_move_right(editor)
 		case ":":
 			editor.mode = .command
 		case "backspace":
-			move_left(&editor.cursor)
+			editor_move_left(editor)
 		}
 	case Quit:
 		break
@@ -33,11 +32,12 @@ normal_mode :: proc(editor: ^Editor, event: Event) {
 
 insert_mode :: proc(editor: ^Editor, event: Event) {
 	editor_event_to_string: string
-	defer delete(editor_event_to_string)
 	switch e in event {
 	case todin.Event:
 		editor_event_to_string = todin.event_to_string(e)
 		switch editor_event_to_string {
+		case "enter":
+			append_line(&editor.buffer, saturating_sub(editor.cursor.y, 1, 0))
 		case "<c-c>":
 			editor.mode = .normal
 		case "backspace":
