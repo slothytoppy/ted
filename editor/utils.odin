@@ -2,6 +2,7 @@ package editor
 
 import "core:log"
 import "core:mem"
+import "core:os"
 
 @(require_results)
 saturating_add :: proc(val, amount, max: $T) -> T {
@@ -36,4 +37,13 @@ log_leaks :: proc(track: ^mem.Tracking_Allocator) {
 		}
 	}
 	mem.tracking_allocator_destroy(track)
+}
+
+// creates a logger from a given fd, ensures it wont log to stdout
+init_logger_from_fd :: proc(fd: os.Handle) -> log.Logger {
+	if fd <= 2 {
+		return log.nil_logger()
+	} else {
+		return log.create_file_logger(fd, log.Level.Info)
+	}
 }

@@ -45,36 +45,48 @@ init_buffer_from_bytes :: proc(data: []byte) -> (buffer: Buffer) {
 			col = 0
 		}
 	}
-	log.info(len(buffer.data))
-	for line, i in buffer.data {
-		for cell, idx in line {
-			log.info(cell.datum.keyname)
-		}
-	}
 	return buffer
 }
 
 delete_char :: proc(buffer: ^Buffer, cursor: Cursor) {
-	if len(buffer.data) <= 0 {
-		return
-	}
 	y := saturating_sub(cursor.y, 1, 0)
 	x := saturating_sub(cursor.x, 1, 0)
 	offset := y
+	line_len, ok := line_length(buffer^, y)
+	if !ok || line_len <= 0 || buffer_length(buffer^) <= 0 {
+		return
+	}
+	if y > cast(i32)len(buffer.data) || line_len < saturating_sub(cursor.x, 1, 0) {
+		return
+	}
+	log.info(buffer_length(buffer^), line_len)
 	ordered_remove(&buffer.data[offset], cast(int)x)
 }
 
+remove_line :: proc(buffer: ^Buffer, #any_int index: i32) {
+	if index > saturating_sub(buffer_length(buffer^), 1, 0) {
+		return
+	}
+	ordered_remove(&buffer.data, cast(int)index)
+}
+
 append_line :: proc(buffer: ^Buffer, #any_int index: i32) {
+	if index > saturating_sub(buffer_length(buffer^), 1, 0) {
+		return
+	}
 	inject_at(&buffer.data, cast(int)index, Line{})
 }
 
 append_rune_to_buffer :: proc(buffer: ^Buffer, cursor: Cursor, key: rune) {
 	offset := saturating_sub(cursor.y, 1, 0)
 	if offset > cast(i32)len(buffer.data) - 1 {
-		log.infof("offset %d is greater than %d", offset, saturating_sub(len(buffer.data), 1, 0))
+		append_line(buffer, offset)
 	}
-	log.info(buffer.data[offset], offset)
-	inject_at(&buffer.data[offset], cast(int)max(cursor.x, 0), Cell{0, 0, todin.Key{key, false}})
+	inject_at(
+		&buffer.data[offset],
+		cast(int)saturating_sub(cursor.x, 1, 0),
+		Cell{0, 0, todin.Key{key, false}},
+	)
 }
 
 buffer_to_string :: proc(buffer: Buffer) -> string {
@@ -87,4 +99,15 @@ buffer_to_string :: proc(buffer: Buffer) -> string {
 
 runes_to_string :: proc(data: []rune) -> string {
 	return utf8.runes_to_string(data[:])
+}
+
+buffer_length :: proc(buffer: Buffer) -> i32 {
+	return cast(i32)len(buffer.data)
+}
+
+line_length :: proc(buffer: Buffer, #any_int line: i32) -> (i32, bool) {
+	if buffer_length(buffer) <= 0 || line > cast(i32)saturating_sub(len(buffer.data), 1, 0) {
+		return 0, false
+	}
+	return cast(i32)len(buffer.data[saturating_sub(line, 1, 0)]), true
 }

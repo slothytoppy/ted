@@ -38,11 +38,20 @@ insert_mode :: proc(editor: ^Editor, event: Event) {
 		switch editor_event_to_string {
 		case "enter":
 			append_line(&editor.buffer, saturating_sub(editor.cursor.y, 1, 0))
+			move_down(&editor.cursor, editor.viewport)
 		case "<c-c>":
 			editor.mode = .normal
 		case "backspace":
-			delete_char(&editor.buffer, editor.cursor)
-			move_left(&editor.cursor)
+			line := saturating_sub(editor.cursor.y, 1, 0)
+			if val, ok := line_length(editor.buffer, line); ok {
+				if val > 0 {
+					delete_char(&editor.buffer, editor.cursor)
+					move_left(&editor.cursor)
+				} else {
+					remove_line(&editor.buffer, line)
+					move_up(&editor.cursor)
+				}
+			}
 		}
 		#partial switch event in e {
 		case todin.Key:

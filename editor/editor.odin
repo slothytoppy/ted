@@ -69,11 +69,9 @@ update :: proc(editor: ^Editor, event: Event) -> (new_event: Event) {
 				editor_move_left(editor)
 			case .right:
 				editor_move_right(editor)
-
 			}
 			todin_event = event
-			new_event = todin_event
-			return new_event
+			return todin_event
 		}
 	}
 	switch editor.mode {
@@ -103,9 +101,7 @@ run :: proc(editor: ^Editor) {
 		}
 	}
 	editor.file_data, _ = os.read_entire_file(arg_info.file)
-	if arg_info.log_file != 0 {
-		context.logger = log.create_file_logger(arg_info.log_file, log.Level.Info)
-	}
+	context.logger = init_logger_from_fd(arg_info.log_file)
 
 	editor^ = init(arg_info.file)
 
@@ -117,7 +113,7 @@ run :: proc(editor: ^Editor) {
 	}
 
 	render(editor.buffer, editor.viewport)
-	todin.move(editor.cursor.y, editor.cursor.x)
+	todin.reset_cursor()
 	log.info(editor.cursor)
 
 	loop: for {
