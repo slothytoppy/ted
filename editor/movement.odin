@@ -1,6 +1,6 @@
 package editor
 
-import "../deps/todin"
+import "../todin"
 
 editor_move_up :: proc(editor: ^Editor) {
 	move_up(&editor.cursor)

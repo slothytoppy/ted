@@ -1,6 +1,6 @@
 package editor
 
-import "../deps/todin"
+import "../todin"
 import "core:log"
 
 render :: proc(buff: Buffer, viewport: Viewport) {
@@ -8,8 +8,12 @@ render :: proc(buff: Buffer, viewport: Viewport) {
 	todin.reset_cursor()
 
 	// subtracting one from scroll and from max_y+scroll makes it so that it only prints one less than max_y, also allows you to not scroll past the end of the file
-	for offset in saturating_sub(viewport.scroll, 1, 0) ..= viewport.max_y + viewport.scroll - 1 {
-		if offset > cast(i32)len(buff.data) - 1 {
+	for offset, i in saturating_sub(
+		viewport.scroll,
+		1,
+		0,
+	) ..= viewport.max_y + viewport.scroll - 1 {
+		if offset > saturating_sub(cast(i32)len(buff.data), 1, 0) {
 			break
 		}
 		line := buff.data[offset]
@@ -25,7 +29,9 @@ render :: proc(buff: Buffer, viewport: Viewport) {
 				todin.print("    ")
 			case:
 				todin.print(cell.datum.keyname)
+				log.info(cell.datum.keyname)
 			}
 		}
+		todin.move_to_start_of_next_line()
 	}
 }

@@ -1,6 +1,6 @@
 package editor
 
-import "../deps/todin"
+import "../todin"
 import "core:log"
 
 normal_mode :: proc(editor: ^Editor, event: Event) {
@@ -34,14 +34,12 @@ insert_mode :: proc(editor: ^Editor, event: Event) {
 	editor_event_to_string: string
 	switch e in event {
 	case todin.Event:
-		editor_event_to_string = todin.event_to_string(e)
-		switch editor_event_to_string {
-		case "enter":
+		#partial switch event in e {
+		case todin.Enter:
 			append_line(&editor.buffer, saturating_sub(editor.cursor.y, 1, 0))
-			move_down(&editor.cursor, editor.viewport)
-		case "<c-c>":
-			editor.mode = .normal
-		case "backspace":
+			log.info("len:", saturating_sub(buffer_length(editor.buffer), 1, 0))
+			move_to_next_line_start(&editor.cursor, editor.viewport)
+		case todin.BackSpace:
 			line := saturating_sub(editor.cursor.y, 1, 0)
 			if val, ok := line_length(editor.buffer, line); ok {
 				if val > 0 {
@@ -52,11 +50,19 @@ insert_mode :: proc(editor: ^Editor, event: Event) {
 					move_up(&editor.cursor)
 				}
 			}
-		}
-		#partial switch event in e {
 		case todin.Key:
+			editor_event_to_string = todin.event_to_string(e)
+			if editor_event_to_string == "<c-c>" {
+				editor.mode = .normal
+			}
 			append_rune_to_buffer(&editor.buffer, editor.cursor, event.keyname)
 			move_right(&editor.cursor, editor.viewport)
+			log.info(
+				"line:",
+				saturating_sub(editor.cursor.y, 1, 0),
+				"len:",
+				len(editor.buffer.data[saturating_sub(editor.cursor.y, 1, 0)]),
+			)
 		}
 	case Quit:
 		break

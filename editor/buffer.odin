@@ -1,6 +1,6 @@
 package editor
 
-import "../deps/todin"
+import "../todin"
 import "core:log"
 import "core:os"
 import "core:unicode/utf8"
@@ -71,34 +71,19 @@ remove_line :: proc(buffer: ^Buffer, #any_int index: i32) {
 }
 
 append_line :: proc(buffer: ^Buffer, #any_int index: i32) {
-	if index > saturating_sub(buffer_length(buffer^), 1, 0) {
-		return
-	}
-	inject_at(&buffer.data, cast(int)index, Line{})
+	inject_at(&buffer.data, cast(int)index + 1, Line{})
 }
 
 append_rune_to_buffer :: proc(buffer: ^Buffer, cursor: Cursor, key: rune) {
 	offset := saturating_sub(cursor.y, 1, 0)
-	if offset > cast(i32)len(buffer.data) - 1 {
-		append_line(buffer, offset)
+	if offset > saturating_sub(buffer_length(buffer^), 1, 0) {
+		panic("attempting to write to unallocated line")
 	}
 	inject_at(
 		&buffer.data[offset],
 		cast(int)saturating_sub(cursor.x, 1, 0),
 		Cell{0, 0, todin.Key{key, false}},
 	)
-}
-
-buffer_to_string :: proc(buffer: Buffer) -> string {
-	str: [dynamic]rune
-	for cell, i in buffer.data {
-		append(&str, cell[i].datum.keyname)
-	}
-	return utf8.runes_to_string(str[:])
-}
-
-runes_to_string :: proc(data: []rune) -> string {
-	return utf8.runes_to_string(data[:])
 }
 
 buffer_length :: proc(buffer: Buffer) -> i32 {

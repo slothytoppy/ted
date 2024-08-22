@@ -1,6 +1,6 @@
 package editor
 
-import "../deps/todin"
+import "../todin"
 import "core:flags"
 import "core:fmt"
 import "core:log"
@@ -104,6 +104,8 @@ run :: proc(editor: ^Editor) {
 	context.logger = init_logger_from_fd(arg_info.log_file)
 
 	editor^ = init(arg_info.file)
+	log.info(editor.viewport)
+	editor.cursor = {1, 1}
 
 	when ODIN_DEBUG {
 		track: mem.Tracking_Allocator
