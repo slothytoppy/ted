@@ -60,7 +60,9 @@ read :: proc() -> Event {
 	if bytes_read <= 0 || err != os.ERROR_NONE {
 		return nil
 	}
-	event := parse(utf8.string_to_runes(string(data[:bytes_read])))
+	key := utf8.string_to_runes(string(data[:bytes_read]))
+	defer delete(key)
+	event := parse(key)
 	return event
 }
 

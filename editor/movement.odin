@@ -1,6 +1,7 @@
 package editor
 
 import "../todin"
+import "core:log"
 
 editor_move_up :: proc(editor: ^Editor) {
 	move_up(&editor.cursor)
@@ -11,7 +12,12 @@ editor_move_up :: proc(editor: ^Editor) {
 }
 
 editor_move_down :: proc(editor: ^Editor) {
-	if editor.cursor.y > cast(i32)len(editor.buffer.data) - 1 {
+	if editor.cursor.y > saturating_sub(cast(i32)len(editor.buffer.data), 1, 0) {
+		log.infof(
+			"%d is greater than %d",
+			editor.cursor.y,
+			saturating_sub(cast(i32)len(editor.buffer.data), 1, 0),
+		)
 		return
 	}
 	move_down(&editor.cursor, editor.viewport)
@@ -21,7 +27,7 @@ editor_move_down :: proc(editor: ^Editor) {
 			editor.viewport.scroll = saturating_add(
 				editor.viewport.scroll,
 				1,
-				cast(i32)len(editor.buffer.data) - 1,
+				saturating_sub(cast(i32)len(editor.buffer.data), 1, 0),
 			)
 		}
 	}

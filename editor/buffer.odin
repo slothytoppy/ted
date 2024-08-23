@@ -52,14 +52,10 @@ delete_char :: proc(buffer: ^Buffer, cursor: Cursor) {
 	y := saturating_sub(cursor.y, 1, 0)
 	x := saturating_sub(cursor.x, 1, 0)
 	offset := y
-	line_len, ok := line_length(buffer^, y)
-	if !ok || line_len <= 0 || buffer_length(buffer^) <= 0 {
+	if buffer_length(buffer^) <= 0 || is_line_empty(buffer^, y) {
 		return
 	}
-	if y > cast(i32)len(buffer.data) || line_len < saturating_sub(cursor.x, 1, 0) {
-		return
-	}
-	log.info(buffer_length(buffer^), line_len)
+	log.debug("line at:", offset, buffer.data[offset])
 	ordered_remove(&buffer.data[offset], cast(int)x)
 }
 
@@ -90,9 +86,23 @@ buffer_length :: proc(buffer: Buffer) -> i32 {
 	return cast(i32)len(buffer.data)
 }
 
-line_length :: proc(buffer: Buffer, #any_int line: i32) -> (i32, bool) {
-	if buffer_length(buffer) <= 0 || line > cast(i32)saturating_sub(len(buffer.data), 1, 0) {
-		return 0, false
+count :: proc(buffer: Buffer, char: rune) -> (count: i32) {
+	for line in buffer.data {
+		for cell in line {
+			if cell.datum.keyname == char {
+				count += 1
+			}
+		}
 	}
-	return cast(i32)len(buffer.data[saturating_sub(line, 1, 0)]), true
+	return count
+}
+
+is_line_empty :: proc(buffer: Buffer, #any_int line: i32) -> bool {
+	if line > buffer_length(buffer) {
+		return true
+	}
+	if len(buffer.data[line]) > 0 {
+		return false
+	}
+	return true
 }

@@ -22,14 +22,13 @@ render :: proc(buff: Buffer, viewport: Viewport) {
 				break
 			}
 			switch cell.datum.keyname {
+			// for not printing newlines, it interferes with rendering the actual text
 			case '\n':
-				todin.move_to_start_of_next_line()
 			case '\t':
 				// TODO: make this configurable
 				todin.print("    ")
 			case:
 				todin.print(cell.datum.keyname)
-				log.info(cell.datum.keyname)
 			}
 		}
 		todin.move_to_start_of_next_line()

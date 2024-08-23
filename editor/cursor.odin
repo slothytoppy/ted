@@ -1,5 +1,7 @@
 package editor
 
+import "core:log"
+
 Cursor :: struct {
 	x, y: i32,
 }
@@ -10,11 +12,7 @@ move_up :: proc(cursor: ^Cursor) {
 
 move_down :: proc(cursor: ^Cursor, viewport: Viewport) {
 	cursor.y = saturating_add(cursor.y, 1, viewport.max_y)
-}
-
-move_to_next_line_start :: proc(cursor: ^Cursor, viewport: Viewport) {
-	cursor.y = saturating_add(cursor.y, 1, viewport.max_y)
-	cursor.x = 0
+	log.info(cursor, viewport)
 }
 
 move_left :: proc(cursor: ^Cursor) {
@@ -23,4 +21,9 @@ move_left :: proc(cursor: ^Cursor) {
 
 move_right :: proc(cursor: ^Cursor, viewport: Viewport) {
 	cursor.x = saturating_add(cursor.x, 1, viewport.max_x)
+}
+
+move_to_next_line_start :: proc(cursor: ^Cursor, viewport: Viewport) {
+	cursor.y = saturating_add(cursor.y, 1, viewport.max_y)
+	cursor.x = 0
 }

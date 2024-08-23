@@ -37,27 +37,28 @@ insert_mode :: proc(editor: ^Editor, event: Event) {
 		#partial switch event in e {
 		case todin.Enter:
 			append_line(&editor.buffer, saturating_sub(editor.cursor.y, 1, 0))
-			log.info("len:", saturating_sub(buffer_length(editor.buffer), 1, 0))
 			move_to_next_line_start(&editor.cursor, editor.viewport)
 		case todin.BackSpace:
 			line := saturating_sub(editor.cursor.y, 1, 0)
-			if val, ok := line_length(editor.buffer, line); ok {
-				if val > 0 {
-					delete_char(&editor.buffer, editor.cursor)
-					move_left(&editor.cursor)
-				} else {
-					remove_line(&editor.buffer, line)
-					move_up(&editor.cursor)
-				}
+			if is_line_empty(editor.buffer, line) {
+				remove_line(&editor.buffer, line)
+				move_up(&editor.cursor)
+			} else {
+				delete_char(&editor.buffer, editor.cursor)
+				move_left(&editor.cursor)
 			}
 		case todin.Key:
 			editor_event_to_string = todin.event_to_string(e)
-			if editor_event_to_string == "<c-c>" {
-				editor.mode = .normal
+			if event.control == true {
+				switch editor_event_to_string {
+				case "<c-c>":
+					editor.mode = .normal
+				}
+				return
 			}
 			append_rune_to_buffer(&editor.buffer, editor.cursor, event.keyname)
 			move_right(&editor.cursor, editor.viewport)
-			log.info(
+			log.debug(
 				"line:",
 				saturating_sub(editor.cursor.y, 1, 0),
 				"len:",

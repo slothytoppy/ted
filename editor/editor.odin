@@ -4,8 +4,8 @@ import "../todin"
 import "core:flags"
 import "core:fmt"
 import "core:log"
+import "core:mem"
 import "core:os"
-import "core:unicode/utf8"
 
 Viewport :: struct {
 	max_x, max_y, scroll: i32,
@@ -104,8 +104,6 @@ run :: proc(editor: ^Editor) {
 	context.logger = init_logger_from_fd(arg_info.log_file)
 
 	editor^ = init(arg_info.file)
-	log.info(editor.viewport)
-	editor.cursor = {1, 1}
 
 	when ODIN_DEBUG {
 		track: mem.Tracking_Allocator
@@ -128,7 +126,10 @@ run :: proc(editor: ^Editor) {
 				break loop
 			}
 			render(editor.buffer, editor.viewport)
-			todin.move(editor.cursor.y, editor.cursor.x)
+			todin.move(
+				saturating_add(editor.cursor.y, 1, editor.viewport.max_y),
+				saturating_add(editor.cursor.x, 1, editor.viewport.max_x),
+			)
 		}
 	}
 	deinit()
