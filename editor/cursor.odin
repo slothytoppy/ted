@@ -3,7 +3,11 @@ package editor
 import "core:log"
 
 Cursor :: struct {
-	x, y: i32,
+	virtual_x, x, y: i32,
+}
+
+init_cursor :: proc(y: i32 = 1, x: i32 = 0) -> Cursor {
+	return Cursor{y = y, x = x}
 }
 
 move_up :: proc(cursor: ^Cursor) {
@@ -12,7 +16,7 @@ move_up :: proc(cursor: ^Cursor) {
 
 move_down :: proc(cursor: ^Cursor, viewport: Viewport) {
 	cursor.y = saturating_add(cursor.y, 1, viewport.max_y)
-	log.info(cursor, viewport)
+	log.debug(cursor, viewport)
 }
 
 move_left :: proc(cursor: ^Cursor) {

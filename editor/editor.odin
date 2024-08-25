@@ -128,7 +128,10 @@ run :: proc(editor: ^Editor) {
 			}
 			render(editor.buffer, editor.viewport)
 			// TODO: remove the need for todin.move() and do rendering where it can remember or not interfere with the tui's cursor
-			todin.move(editor.cursor.y, saturating_add(editor.cursor.x, 1, editor.viewport.max_x))
+			todin.move(
+				saturating_add(editor.cursor.y, 1, editor.viewport.max_y),
+				saturating_add(editor.cursor.x, 1, editor.viewport.max_x),
+			)
 		}
 	}
 	deinit()
