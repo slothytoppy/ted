@@ -13,10 +13,10 @@ render :: proc(buff: Buffer, viewport: Viewport) {
 		1,
 		0,
 	) ..= viewport.max_y + viewport.scroll - 1 {
-		if offset > saturating_sub(cast(i32)len(buff.data), 1, 0) {
+		if offset > saturating_sub(cast(i32)len(buff), 1, 0) || cast(i32)i >= viewport.max_y {
 			break
 		}
-		line := buff.data[offset]
+		line := buff[offset]
 		for cell, idx in line {
 			if cast(i32)idx > viewport.max_x {
 				break

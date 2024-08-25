@@ -34,6 +34,7 @@ Event :: union {
 
 init :: proc(file: string) -> (editor: Editor) {
 	editor.viewport.max_y, editor.viewport.max_x = todin.get_max_cursor_pos()
+	editor.viewport.max_y -= 2
 	editor.file_data, _ = os.read_entire_file(file)
 	editor.buffer = init_buffer_from_bytes(editor.file_data)
 	todin.init()
@@ -126,10 +127,8 @@ run :: proc(editor: ^Editor) {
 				break loop
 			}
 			render(editor.buffer, editor.viewport)
-			todin.move(
-				saturating_add(editor.cursor.y, 1, editor.viewport.max_y),
-				saturating_add(editor.cursor.x, 1, editor.viewport.max_x),
-			)
+			// TODO: remove the need for todin.move() and do rendering where it can remember or not interfere with the tui's cursor
+			todin.move(editor.cursor.y, saturating_add(editor.cursor.x, 1, editor.viewport.max_x))
 		}
 	}
 	deinit()
