@@ -51,15 +51,14 @@ init_buffer_with_empty_lines :: proc(#any_int lines: i32) -> (buffer: Buffer) {
 	return buffer
 }
 
-delete_char :: proc(buffer: ^Buffer, cursor: Cursor) {
-	y := saturating_sub(cursor.y, 1, 0)
+delete_char :: proc(line: ^Line, cursor: Cursor) {
 	x := saturating_sub(cursor.x, 1, 0)
-	offset := y
-	if buffer_length(buffer^) <= 0 || is_line_empty(buffer^, y) {
+	offset := x
+	if len(line) <= 0 || x >= cast(i32)len(line) {
 		return
 	}
-	log.debug("line at:", offset, buffer[offset])
-	ordered_remove(&buffer[offset], cast(int)x)
+	log.debug("line at:", offset, line)
+	ordered_remove(line, cast(int)offset)
 }
 
 remove_line :: proc(buffer: ^Buffer, #any_int index: i32) {

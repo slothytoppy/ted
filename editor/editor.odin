@@ -18,23 +18,26 @@ EditorMode :: enum {
 }
 
 Editor :: struct {
-	file_data: []byte,
-	mode:      EditorMode,
-	buffer:    Buffer,
-	cursor:    Cursor,
-	viewport:  Viewport,
+	current_file: string,
+	file_data:    []byte,
+	mode:         EditorMode,
+	buffer:       Buffer,
+	cursor:       Cursor,
+	viewport:     Viewport,
 }
 
+Init :: struct {}
 Quit :: struct {}
 
 Event :: union {
 	todin.Event,
+	Init,
 	Quit,
 }
 
 init :: proc(file: string) -> (editor: Editor) {
 	editor.viewport.max_y, editor.viewport.max_x = todin.get_max_cursor_pos()
-	editor.viewport.max_y -= 2
+	editor.viewport.max_y -= STATUS_LINE_HEIGHT + COMMAND_LINE_HEIGHT
 	editor.file_data, _ = os.read_entire_file(file)
 	editor.buffer = init_buffer_from_bytes(editor.file_data)
 	todin.init()
@@ -50,6 +53,7 @@ deinit :: proc() {
 update :: proc(editor: ^Editor, event: Event) -> (new_event: Event) {
 	todin_event: todin.Event = todin.Nothing{}
 	switch e in event {
+	case Init:
 	case Quit:
 		return Quit{}
 	case todin.Event:
@@ -61,16 +65,18 @@ update :: proc(editor: ^Editor, event: Event) -> (new_event: Event) {
 				return Quit{}
 			}
 		case todin.ArrowKey:
+			dir: CursorEvent
 			switch event {
 			case .up:
-				editor_move_up(editor)
+				dir = .up
 			case .down:
-				editor_move_down(editor)
+				dir = .down
 			case .left:
-				editor_move_left(editor)
+				dir = .left
 			case .right:
-				editor_move_right(editor)
+				dir = .right
 			}
+			editor_move(dir, editor.buffer, &editor.cursor, &editor.viewport)
 			todin_event = event
 			return todin_event
 		}
@@ -81,7 +87,7 @@ update :: proc(editor: ^Editor, event: Event) -> (new_event: Event) {
 	case .normal:
 		normal_mode(editor, event)
 	case .command:
-		unimplemented()
+		command_mode(editor, event)
 	}
 	return nil
 }
@@ -105,6 +111,9 @@ run :: proc(editor: ^Editor) {
 	context.logger = init_logger_from_fd(arg_info.log_file)
 
 	editor^ = init(arg_info.file)
+	editor.current_file = arg_info.file
+	set_status_line_position(editor.viewport.max_y + 1)
+	set_command_line_position(editor.viewport.max_y + 2)
 
 	when ODIN_DEBUG {
 		track: mem.Tracking_Allocator
@@ -114,6 +123,8 @@ run :: proc(editor: ^Editor) {
 	}
 
 	render(editor.buffer, editor.viewport)
+	write_status_line(editor.mode, editor.current_file, editor.cursor)
+	print_command_line()
 	todin.reset_cursor()
 	log.info(editor.cursor)
 
@@ -123,10 +134,13 @@ run :: proc(editor: ^Editor) {
 			event = update(editor, event)
 			switch e in event {
 			case todin.Event:
+			case Init:
 			case Quit:
 				break loop
 			}
-			render(editor.buffer, editor.viewport)
+			render_buffer_with_scroll(editor.buffer, editor.viewport)
+			write_status_line(editor.mode, editor.current_file, editor.cursor)
+			print_command_line()
 			// TODO: remove the need for todin.move() and do rendering where it can remember or not interfere with the tui's cursor
 			todin.move(
 				saturating_add(editor.cursor.y, 1, editor.viewport.max_y),

@@ -6,6 +6,7 @@ import "core:log"
 normal_mode :: proc(editor: ^Editor, event: Event) {
 	event_to_string: string
 	switch e in event {
+	case Init:
 	case todin.Event:
 		event_to_string = todin.event_to_string(e)
 		switch event_to_string {
@@ -15,13 +16,13 @@ normal_mode :: proc(editor: ^Editor, event: Event) {
 			editor.mode = .insert
 			log.info(editor.mode)
 		case "k":
-			editor_move_up(editor)
+			editor_move_up(editor.buffer, &editor.cursor, &editor.viewport)
 		case "j":
-			editor_move_down(editor)
+			editor_move_down(editor.buffer, &editor.cursor, &editor.viewport)
 		case "h":
-			editor_move_left(editor)
+			editor_move_left(editor.buffer, &editor.cursor)
 		case "l":
-			editor_move_right(editor)
+			editor_move_right(editor.buffer, &editor.cursor, editor.viewport)
 		case ":":
 			editor.mode = .command
 		case "^":
@@ -37,7 +38,7 @@ normal_mode :: proc(editor: ^Editor, event: Event) {
 		// no queue system so this is kinda bad since in vim its `dd` and not just `d`
 		//	editor_remove_line_and_move_up(&editor.cursor, &editor.buffer)
 		case "backspace":
-			editor_move_left(editor)
+			editor_move_left(editor.buffer, &editor.cursor)
 		}
 	case Quit:
 		break
@@ -72,7 +73,30 @@ insert_mode :: proc(editor: ^Editor, event: Event) {
 				len(editor.buffer[saturating_sub(editor.cursor.y, 1, 0)]),
 			)
 		}
+	case Init:
 	case Quit:
+		break
+	}
+}
+
+command_mode :: proc(editor: ^Editor, event: Event) {
+	switch e in event {
+	case todin.Event:
+		switch event in e {
+		case todin.Nothing, todin.FunctionKey, todin.Resize, todin.ArrowKey:
+		case todin.BackSpace:
+			remove_char_from_command_line()
+		case todin.Enter:
+			check_command()
+		case todin.Key:
+			if event.keyname == 'c' && event.control {
+				editor.mode = .normal
+				return
+			}
+			write_rune_to_command_line(event.keyname)
+		case todin.EscapeKey:
+		}
+	case Init, Quit:
 		break
 	}
 }

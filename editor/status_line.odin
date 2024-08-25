@@ -1,0 +1,51 @@
+package editor
+
+import "../todin"
+import "core:fmt"
+
+STATUS_LINE_HEIGHT :: 1
+
+@(private = "file")
+STATUS_LINE_POSITION: int
+
+set_status_line_position :: proc(#any_int line: int) {
+	STATUS_LINE_POSITION = line
+}
+
+@(private = "file")
+editor_mode_to_str :: proc(mode: EditorMode) -> string {
+	switch mode {
+	case .normal:
+		return "normal"
+	case .insert:
+		return "insert"
+	case .command:
+		return "command"
+	}
+	return ""
+}
+
+@(private = "file")
+shorten_file_name :: proc(file_name: string) -> string {
+	data: [dynamic]byte
+	#reverse for r, i in file_name {
+		if r == '/' || r == '\\' {
+			// is a directory if it ends in `/`??
+			if i >= len(file_name) {
+				return ""
+			}
+			append(&data, file_name[i + 1:])
+			break
+		}
+	}
+	return string(data[:])
+}
+
+write_status_line :: proc(mode: EditorMode, file_name: string, cursor: Cursor) {
+	todin.move(STATUS_LINE_POSITION, 0)
+	todin.print(
+		editor_mode_to_str(mode),
+		shorten_file_name(file_name),
+		fmt.tprint(cursor.y, ":", cursor.x, sep = ""),
+	)
+}
