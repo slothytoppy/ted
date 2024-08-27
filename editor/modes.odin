@@ -1,17 +1,15 @@
 package editor
 
 import "../todin"
+import "core:fmt"
 import "core:log"
 
 normal_mode :: proc(editor: ^Editor, event: Event) {
 	event_to_string: string
-	switch e in event {
-	case Init:
+	switch e in event {case Init:
 	case todin.Event:
 		event_to_string = todin.event_to_string(e)
 		switch event_to_string {
-		case "<c-s>":
-			unimplemented("saving files")
 		case "I":
 			editor.mode = .insert
 			log.info(editor.mode)
@@ -79,7 +77,7 @@ insert_mode :: proc(editor: ^Editor, event: Event) {
 	}
 }
 
-command_mode :: proc(editor: ^Editor, event: Event) {
+command_mode :: proc(editor: ^Editor, event: Event) -> Event {
 	switch e in event {
 	case todin.Event:
 		switch event in e {
@@ -87,16 +85,45 @@ command_mode :: proc(editor: ^Editor, event: Event) {
 		case todin.BackSpace:
 			remove_char_from_command_line()
 		case todin.Enter:
-			check_command()
+			switch commands in check_command() {
+			case Commands:
+				switch command in commands {
+				case Quit:
+					return Quit{}
+				case EditFile:
+					buffer := read_file(command.file_name)
+					if buffer == nil {
+						write_string_to_command_line(
+							fmt.aprintf("file %s does not exist", command.file_name),
+						)
+						return nil
+					}
+					delete_buffer(&editor.buffer)
+					editor.current_file = command.file_name
+					editor.buffer = buffer
+					log.info(editor.current_file)
+					editor.mode = .normal
+				case SaveAs:
+					write_buffer_to_file(editor.buffer, command.file_name)
+					delete(command.file_name)
+					editor.mode = .normal
+				case Save:
+					write_buffer_to_file(editor.buffer, editor.current_file)
+					editor.mode = .normal
+				}
+			}
 		case todin.Key:
 			if event.keyname == 'c' && event.control {
 				editor.mode = .normal
-				return
+				return nil
 			}
 			write_rune_to_command_line(event.keyname)
 		case todin.EscapeKey:
 		}
-	case Init, Quit:
+	case Init:
 		break
+	case Quit:
+		return Quit{}
 	}
+	return nil
 }

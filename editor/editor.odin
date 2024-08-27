@@ -58,6 +58,9 @@ update :: proc(editor: ^Editor, event: Event) -> (new_event: Event) {
 		return Quit{}
 	case todin.Event:
 		#partial switch event in e {
+		case todin.Resize:
+			editor.viewport.max_y, editor.viewport.max_x = todin.get_max_cursor_pos()
+			editor.viewport.max_y -= STATUS_LINE_HEIGHT + COMMAND_LINE_HEIGHT
 		case todin.Key:
 			key_to_string := todin.event_to_string(event)
 			switch key_to_string {
@@ -87,9 +90,9 @@ update :: proc(editor: ^Editor, event: Event) -> (new_event: Event) {
 	case .normal:
 		normal_mode(editor, event)
 	case .command:
-		command_mode(editor, event)
+		new_event = command_mode(editor, event)
 	}
-	return nil
+	return new_event
 }
 
 run :: proc(editor: ^Editor) {
@@ -112,6 +115,7 @@ run :: proc(editor: ^Editor) {
 
 	editor^ = init(arg_info.file)
 	editor.current_file = arg_info.file
+	// this is annoying
 	set_status_line_position(editor.viewport.max_y + 1)
 	set_command_line_position(editor.viewport.max_y + 2)
 
@@ -140,12 +144,17 @@ run :: proc(editor: ^Editor) {
 			}
 			render_buffer_with_scroll(editor.buffer, editor.viewport)
 			write_status_line(editor.mode, editor.current_file, editor.cursor)
-			print_command_line()
+			if editor.mode == .command {
+				print_command_line()
+			}
+			log.info(editor.current_file)
 			// TODO: remove the need for todin.move() and do rendering where it can remember or not interfere with the tui's cursor
-			todin.move(
-				saturating_add(editor.cursor.y, 1, editor.viewport.max_y),
-				saturating_add(editor.cursor.x, 1, editor.viewport.max_x),
-			)
+			if editor.mode != .command {
+				todin.move(
+					saturating_add(editor.cursor.y, 1, editor.viewport.max_y),
+					saturating_add(editor.cursor.x, 1, editor.viewport.max_x),
+				)
+			}
 		}
 	}
 	deinit()

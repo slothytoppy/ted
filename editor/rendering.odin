@@ -8,7 +8,7 @@ render_buffer_line :: proc(line: Line, viewport: Viewport, #any_int tab_width: i
 		if cast(i32)idx > viewport.max_x {
 			break
 		}
-		switch cell.datum.keyname {
+		switch cell.datum {
 		// for not printing newlines, it interferes with rendering the actual text
 		case '\n':
 		case '\t':
@@ -17,7 +17,7 @@ render_buffer_line :: proc(line: Line, viewport: Viewport, #any_int tab_width: i
 				todin.print(" ")
 			}
 		case:
-			todin.print(cell.datum.keyname)
+			todin.print(rune(cell.datum))
 		}
 	}
 }
@@ -26,7 +26,7 @@ render_buffer_with_scroll :: proc(buff: Buffer, viewport: Viewport) {
 	todin.clear_screen()
 	todin.reset_cursor()
 	for line_idx, i in viewport.scroll ..= viewport.max_y + viewport.scroll - 1 {
-		if line_idx > saturating_sub(cast(i32)len(buff), 1, 0) || cast(i32)i >= viewport.max_y {
+		if line_idx >= saturating_sub(cast(i32)len(buff), 1, 0) || cast(i32)i >= viewport.max_y {
 			break
 		}
 		render_buffer_line(buff[line_idx], viewport, 4)
@@ -52,14 +52,14 @@ render :: proc(buff: Buffer, viewport: Viewport) {
 			if cast(i32)idx > viewport.max_x {
 				break
 			}
-			switch cell.datum.keyname {
+			switch cell.datum {
 			// for not printing newlines, it interferes with rendering the actual text
 			case '\n':
 			case '\t':
 				// TODO: make this configurable
 				todin.print("    ")
 			case:
-				todin.print(cell.datum.keyname)
+				todin.print(rune(cell.datum))
 			}
 		}
 		todin.move_to_start_of_next_line()

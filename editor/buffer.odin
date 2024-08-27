@@ -7,7 +7,7 @@ import "core:unicode/utf8"
 
 Cell :: struct {
 	fg, bg: int,
-	datum:  todin.Key,
+	datum:  byte,
 }
 
 Line :: [dynamic]Cell
@@ -35,7 +35,7 @@ init_buffer_from_bytes :: proc(data: []byte) -> (buffer: Buffer) {
 	col := 0
 	append(&buffer, Line{})
 	for b, i in data {
-		append(&buffer[line], Cell{0, 0, todin.Key{rune(b), false}})
+		append(&buffer[line], Cell{0, 0, b})
 		col += 1
 		if b == '\n' {
 			append(&buffer, Line{})
@@ -51,6 +51,47 @@ init_buffer_with_empty_lines :: proc(#any_int lines: i32) -> (buffer: Buffer) {
 	return buffer
 }
 
+read_file :: proc {
+	read_file_from_string,
+	read_file_from_data,
+}
+
+read_file_from_string :: proc(file: string) -> (buffer: Buffer) {
+	data, err := os.read_entire_file_from_filename(file)
+	if err == false {
+		log.info("file does not exist")
+		return {}
+	}
+	return read_file_from_data(data)
+}
+
+read_file_from_data :: proc(data: []byte) -> (buffer: Buffer) {
+	line, col: int
+	append(&buffer, Line{})
+	for b, i in data {
+		append(&buffer[line], Cell{0, 0, b})
+		col += 1
+		if b == '\n' {
+			append(&buffer, Line{})
+			line += 1
+			col = 0
+		}
+	}
+	return buffer
+}
+
+append_line :: proc(buffer: ^Buffer, #any_int index: i32) {
+	inject_at(buffer, cast(int)index + 1, Line{})
+}
+
+append_rune_to_buffer :: proc(buffer: ^Buffer, cursor: Cursor, key: rune) {
+	offset := cursor.y
+	if offset > saturating_sub(buffer_length(buffer^), 1, 0) {
+		panic("attempting to write to unallocated line")
+	}
+	inject_at(&buffer[offset], cast(int)cursor.x, Cell{0, 0, byte(key)})
+}
+
 delete_char :: proc(line: ^Line, cursor: Cursor) {
 	x := saturating_sub(cursor.x, 1, 0)
 	offset := x
@@ -61,6 +102,16 @@ delete_char :: proc(line: ^Line, cursor: Cursor) {
 	ordered_remove(line, cast(int)offset)
 }
 
+delete_buffer :: proc(buffer: ^Buffer) {
+	for &line in buffer {
+		delete(line[:])
+	}
+}
+
+delete_line :: proc(line: ^Line) {
+	clear(line)
+}
+
 remove_line :: proc(buffer: ^Buffer, #any_int index: i32) {
 	if index >= saturating_sub(buffer_length(buffer^), 1, 0) {
 		return
@@ -68,16 +119,14 @@ remove_line :: proc(buffer: ^Buffer, #any_int index: i32) {
 	ordered_remove(buffer, cast(int)index)
 }
 
-append_line :: proc(buffer: ^Buffer, #any_int index: i32) {
-	inject_at(buffer, cast(int)index + 1, Line{})
-}
-
-append_rune_to_buffer :: proc(buffer: ^Buffer, cursor: Cursor, key: rune) {
-	offset := saturating_sub(cursor.y, 1, 0)
-	if offset > saturating_sub(buffer_length(buffer^), 1, 0) {
-		panic("attempting to write to unallocated line")
+write_buffer_to_file :: proc(buffer: Buffer, file: string) {
+	bytes: [dynamic]byte
+	for line in buffer {
+		for cell in line {
+			append(&bytes, cell.datum)
+		}
 	}
-	inject_at(&buffer[offset], cast(int)cursor.x, Cell{0, 0, todin.Key{key, false}})
+	os.write_entire_file(file, bytes[:])
 }
 
 buffer_length :: proc(buffer: Buffer) -> i32 {
@@ -87,7 +136,7 @@ buffer_length :: proc(buffer: Buffer) -> i32 {
 count :: proc(buffer: Buffer, char: rune) -> (count: i32) {
 	for line in buffer {
 		for cell in line {
-			if cell.datum.keyname == char {
+			if rune(cell.datum) == char {
 				count += 1
 			}
 		}
@@ -110,4 +159,12 @@ is_line_empty :: proc(buffer: Buffer, #any_int line: i32) -> bool {
 		return false
 	}
 	return true
+}
+
+line_to_string :: proc(line: Line) -> string {
+	bytes := make([]byte, len(line))
+	for cell, i in line {
+		bytes[i] = cell.datum
+	}
+	return string(bytes)
 }
