@@ -1,6 +1,7 @@
 package editor
 
 import "../todin"
+import "core:fmt"
 import "core:log"
 import "core:os"
 import "core:unicode/utf8"
@@ -89,9 +90,7 @@ delete_char :: proc(line: ^Line, cursor: Cursor) {
 }
 
 delete_buffer :: proc(buffer: ^Buffer) {
-	for &line in buffer {
-		delete(line[:])
-	}
+	delete(buffer[:])
 }
 
 delete_line :: proc(line: ^Line) {
@@ -131,10 +130,11 @@ count :: proc(buffer: Buffer, char: rune) -> (count: i32) {
 }
 
 line_length :: proc(buffer: Buffer, #any_int line: i32) -> i32 {
-	if line > buffer_length(buffer) {
-		return 0
+	idx := line
+	if idx >= saturating_sub(buffer_length(buffer), 1, 0) {
+		return -1
 	}
-	return saturating_sub(cast(i32)len(buffer[line]), 1, 0)
+	return saturating_sub(cast(i32)len(buffer[idx]), 1, 0)
 }
 
 is_line_empty :: proc(buffer: Buffer, #any_int line: i32) -> bool {

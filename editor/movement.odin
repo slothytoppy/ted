@@ -32,6 +32,9 @@ editor_move_up :: proc(buffer: Buffer, cursor: ^Cursor, viewport: ^Viewport) {
 editor_move_down :: proc(buffer: Buffer, cursor: ^Cursor, viewport: ^Viewport) {
 	line := saturating_add(cursor.y, 1, viewport.max_y)
 	line_len := line_length(buffer, line)
+	if line_len < 0 {
+		return
+	}
 	x := cursor.x
 	log.info(line_len, line, cursor.y)
 	if x >= line_len {
@@ -42,9 +45,6 @@ editor_move_down :: proc(buffer: Buffer, cursor: ^Cursor, viewport: ^Viewport) {
 			cursor.x = cursor.virtual_x
 			cursor.virtual_x = 0
 		}
-	}
-	if cursor.y > buffer_length(buffer) {
-		log.infof("%d is greater than %d", cursor.y, line_len)
 	}
 	editor_scroll_down(cursor, viewport, buffer)
 	move_down(cursor, viewport^)
@@ -89,7 +89,7 @@ editor_move_left :: proc(buffer: Buffer, cursor: ^Cursor) {
 editor_move_right :: proc(buffer: Buffer, cursor: ^Cursor, viewport: Viewport) {
 	line_length := saturating_sub(line_length(buffer, cursor.y), 1, 0)
 	x := cursor.x
-	if x >= line_length {
+	if x > line_length {
 		return
 	}
 	move_right(cursor, viewport)

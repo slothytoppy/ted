@@ -9,3 +9,4 @@
 [ ] overriding/disabling features
 [ ] panes
 [ ] windows
+[ ] multi char motions like `dd` or `<C-o>`
