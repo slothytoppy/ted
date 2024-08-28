@@ -29,39 +29,24 @@ render_buffer_with_scroll :: proc(buff: Buffer, viewport: Viewport) {
 		if line_idx >= saturating_sub(cast(i32)len(buff), 1, 0) || cast(i32)i >= viewport.max_y {
 			break
 		}
+		todin.print(line_idx)
 		render_buffer_line(buff[line_idx], viewport, 4)
 		todin.move_to_start_of_next_line()
 	}
 }
 
-render :: proc(buff: Buffer, viewport: Viewport) {
+render_bytes_with_scroll :: proc(slice: [][]byte, viewport: Viewport) {
 	todin.clear_screen()
 	todin.reset_cursor()
-
-	// subtracting one from scroll and from max_y+scroll makes it so that it only prints one less than max_y, also allows you to not scroll past the end of the file
-	for offset, i in saturating_sub(
-		viewport.scroll,
-		1,
-		0,
-	) ..= viewport.max_y + viewport.scroll - 1 {
-		if offset > saturating_sub(cast(i32)len(buff), 1, 0) || cast(i32)i >= viewport.max_y {
-			break
-		}
-		line := buff[offset]
-		for cell, idx in line {
-			if cast(i32)idx > viewport.max_x {
+	line: int
+	for i in viewport.scroll ..= viewport.max_y + viewport.scroll - 1 {
+		for datum, j in slice[i] {
+			todin.print(rune(datum))
+			if datum == '\n' {
+				line += 1
+				todin.move_to_start_of_next_line()
 				break
 			}
-			switch cell.datum {
-			// for not printing newlines, it interferes with rendering the actual text
-			case '\n':
-			case '\t':
-				// TODO: make this configurable
-				todin.print("    ")
-			case:
-				todin.print(rune(cell.datum))
-			}
 		}
-		todin.move_to_start_of_next_line()
 	}
 }

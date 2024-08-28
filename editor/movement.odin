@@ -72,7 +72,7 @@ editor_scroll_up :: proc(cursor: ^Cursor, viewport: ^Viewport) {
 
 editor_scroll_down :: proc(cursor: ^Cursor, viewport: ^Viewport, buffer: Buffer) {
 	if cursor.y >= viewport.max_y - 1 {
-		if viewport.scroll + viewport.max_y <= buffer_length(buffer) {
+		if viewport.scroll + viewport.max_y <= saturating_sub(buffer_length(buffer), 1, 0) {
 			viewport.scroll = saturating_add(viewport.scroll, 1, buffer_length(buffer))
 		}
 	}
@@ -110,7 +110,8 @@ move_to_line_end :: proc(cursor: ^Cursor, viewport: Viewport, line_length: i32) 
 }
 
 editor_backspace :: proc(cursor: ^Cursor, buffer: ^Buffer) {
-	line := saturating_sub(cursor.y, 1, 0)
+	line := cursor.y
+	log.debug(line)
 	if is_line_empty(buffer^, line) {
 		remove_line(buffer, line)
 		move_up(cursor)

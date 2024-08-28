@@ -19,6 +19,11 @@ init_buffer :: proc {
 	init_buffer_from_bytes,
 }
 
+read_file :: proc {
+	read_file_from_string,
+	read_file_from_data,
+}
+
 init_buffer_from_file :: proc(file: string) -> (buffer: Buffer) {
 	data, err := os.read_entire_file(file)
 	if err == false {
@@ -30,30 +35,11 @@ init_buffer_from_file :: proc(file: string) -> (buffer: Buffer) {
 	return buffer
 }
 
-init_buffer_from_bytes :: proc(data: []byte) -> (buffer: Buffer) {
-	line := 0
-	col := 0
-	append(&buffer, Line{})
-	for b, i in data {
-		append(&buffer[line], Cell{0, 0, b})
-		col += 1
-		if b == '\n' {
-			append(&buffer, Line{})
-			line += 1
-			col = 0
-		}
-	}
-	return buffer
-}
+init_buffer_from_bytes :: read_file_from_data
 
 init_buffer_with_empty_lines :: proc(#any_int lines: i32) -> (buffer: Buffer) {
 	inject_at(&buffer, cast(int)lines, Line{})
 	return buffer
-}
-
-read_file :: proc {
-	read_file_from_string,
-	read_file_from_data,
 }
 
 read_file_from_string :: proc(file: string) -> (buffer: Buffer) {
@@ -81,7 +67,7 @@ read_file_from_data :: proc(data: []byte) -> (buffer: Buffer) {
 }
 
 append_line :: proc(buffer: ^Buffer, #any_int index: i32) {
-	inject_at(buffer, cast(int)index + 1, Line{})
+	inject_at(buffer, cast(int)index, Line{})
 }
 
 append_rune_to_buffer :: proc(buffer: ^Buffer, cursor: Cursor, key: rune) {
@@ -152,13 +138,10 @@ line_length :: proc(buffer: Buffer, #any_int line: i32) -> i32 {
 }
 
 is_line_empty :: proc(buffer: Buffer, #any_int line: i32) -> bool {
-	if line > saturating_sub(buffer_length(buffer), 1, 0) {
+	if line > saturating_sub(buffer_length(buffer), 1, 0) || len(buffer[line]) == 0 {
 		return true
 	}
-	if len(buffer[line]) > 0 {
-		return false
-	}
-	return true
+	return false
 }
 
 line_to_string :: proc(line: Line) -> string {

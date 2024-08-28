@@ -3,7 +3,7 @@
 [✓] editing the file
 [✓] saving the file
 [ ] testing the editor
-[ ] editing other files
+[✓] editing other files
 [ ] file viewer
 [ ] custom plugins
 [ ] overriding/disabling features

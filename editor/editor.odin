@@ -19,11 +19,11 @@ EditorMode :: enum {
 
 Editor :: struct {
 	current_file: string,
-	file_data:    []byte,
 	mode:         EditorMode,
 	buffer:       Buffer,
 	cursor:       Cursor,
 	viewport:     Viewport,
+	command_line: CommandLine,
 }
 
 Init :: struct {}
@@ -38,8 +38,7 @@ Event :: union {
 init :: proc(file: string) -> (editor: Editor) {
 	editor.viewport.max_y, editor.viewport.max_x = todin.get_max_cursor_pos()
 	editor.viewport.max_y -= STATUS_LINE_HEIGHT + COMMAND_LINE_HEIGHT
-	editor.file_data, _ = os.read_entire_file(file)
-	editor.buffer = init_buffer_from_bytes(editor.file_data)
+	editor.buffer = init_buffer(file)
 	todin.init()
 	todin.enter_alternate_screen()
 	return editor
@@ -61,12 +60,6 @@ update :: proc(editor: ^Editor, event: Event) -> (new_event: Event) {
 		case todin.Resize:
 			editor.viewport.max_y, editor.viewport.max_x = todin.get_max_cursor_pos()
 			editor.viewport.max_y -= STATUS_LINE_HEIGHT + COMMAND_LINE_HEIGHT
-		case todin.Key:
-			key_to_string := todin.event_to_string(event)
-			switch key_to_string {
-			case "<c-q>":
-				return Quit{}
-			}
 		case todin.ArrowKey:
 			dir: CursorEvent
 			switch event {
@@ -110,14 +103,13 @@ run :: proc(editor: ^Editor) {
 			os.exit(1)
 		}
 	}
-	editor.file_data, _ = os.read_entire_file(arg_info.file)
 	context.logger = init_logger_from_fd(arg_info.log_file)
 
 	editor^ = init(arg_info.file)
 	editor.current_file = arg_info.file
 	// this is annoying
 	set_status_line_position(editor.viewport.max_y + 1)
-	set_command_line_position(editor.viewport.max_y + 2)
+	set_command_line_position(&editor.command_line, editor.viewport.max_y + 2)
 
 	when ODIN_DEBUG {
 		track: mem.Tracking_Allocator
@@ -126,9 +118,8 @@ run :: proc(editor: ^Editor) {
 		defer log_leaks(&track)
 	}
 
-	render(editor.buffer, editor.viewport)
+	render_buffer_with_scroll(editor.buffer, editor.viewport)
 	write_status_line(editor.mode, editor.current_file, editor.cursor)
-	print_command_line()
 	todin.reset_cursor()
 	log.info(editor.cursor)
 
@@ -145,7 +136,7 @@ run :: proc(editor: ^Editor) {
 			render_buffer_with_scroll(editor.buffer, editor.viewport)
 			write_status_line(editor.mode, editor.current_file, editor.cursor)
 			if editor.mode == .command {
-				print_command_line()
+				print_command_line(editor.command_line)
 			}
 			log.info(editor.current_file)
 			// TODO: remove the need for todin.move() and do rendering where it can remember or not interfere with the tui's cursor

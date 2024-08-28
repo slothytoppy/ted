@@ -5,7 +5,6 @@ import "core:log"
 import "core:strings"
 
 COMMAND_LINE_HEIGHT :: 1
-COMMAND_LINE_POSITION: int
 
 Save :: struct {}
 SaveAs :: struct {
@@ -22,74 +21,103 @@ Commands :: union {
 	EditFile,
 }
 
-@(private = "file")
-internal_buffer: Line
-@(private = "file")
-internal_cursor: Cursor
+CliEvent :: union {
+	ErrorMsg,
+	Commands,
+}
+
+ErrorMsg :: string
+
+CommandLine :: struct {
+	data:   Line,
+	error:  Line,
+	cursor: Cursor,
+}
 
 // this is kinda meh
-set_command_line_position :: proc(#any_int line: int) {
-	COMMAND_LINE_POSITION = line
+set_command_line_position :: proc(cli: ^CommandLine, #any_int line: i32) {
+	cli.cursor.y = line
 }
 
-write_rune_to_command_line :: proc(r: rune) {
-	append(&internal_buffer, Cell{0, 0, byte(r)})
-	internal_cursor.x += 1
+write_rune_to_command_line :: proc(cli: ^CommandLine, r: rune) {
+	append(&cli.data, Cell{0, 0, byte(r)})
+	cli.cursor.x += 1
 }
 
-write_string_to_command_line :: proc(s: string) {
+write_string_to_command_line :: proc(cli: ^CommandLine, s: string) {
 	for r in s {
-		write_rune_to_command_line(r)
+		write_rune_to_command_line(cli, r)
 	}
 }
 
-remove_char_from_command_line :: proc() {
-	delete_char(&internal_buffer, Cursor{x = cast(i32)internal_cursor.x})
-	internal_cursor.x -= 1
+write_error_to_command_line :: proc(cli: ^CommandLine, s: string) {
+	for r in s {
+		append(&cli.error, Cell{0, 0, byte(r)})
+	}
+	cli.cursor.x = 0
 }
 
-print_command_line :: proc() {
-	todin.move(COMMAND_LINE_POSITION, 0)
+remove_char_from_command_line :: proc(cli: ^CommandLine) {
+	delete_char(&cli.data, Cursor{x = cast(i32)cli.cursor.x})
+	cli.cursor.x -= 1
+}
+
+print_command_line :: proc(cli: CommandLine) {
+	todin.move(cli.cursor.y, 0)
+	if len(cli.error) > 0 {
+		render_buffer_line(cli.error, {max_x = 1000}, 0)
+		return
+	}
 	todin.print(':')
 	tmp: [dynamic]byte
 	defer delete(tmp)
-	for cell in internal_buffer {
+	for cell in cli.data {
 		append(&tmp, cell.datum)
 	}
 	todin.print(string(tmp[:]))
 	log.info(string(tmp[:]))
-	todin.move(COMMAND_LINE_POSITION, internal_cursor.x + 2)
+	todin.move(cli.cursor.y, cli.cursor.x + 2)
 }
 
-@(require_results)
-check_command :: proc() -> Maybe(Commands) {
-	line := line_to_string(internal_buffer)
-	if len(internal_buffer) <= 0 || line == "" {
-		return nil
-	}
-	defer delete(line)
-	defer delete_line(&internal_buffer)
-	defer internal_cursor.x = 0
+/* 
 
+  `:e` <path> 
+  what if path doesnt exist or you do only `:e`?
+  i need to give the user an error somehow
+
+*/
+
+@(require_results)
+check_command :: proc(cli: ^CommandLine) -> (event: CliEvent) {
+	line := line_to_string(cli.data)
+	defer delete(line)
+	defer delete_line(&cli.data)
+	defer cli.cursor.x = 0
+
+	command: Commands
+
+	if len(line) <= 0 {
+		return
+	}
 	switch line[0] {
 	case 'q':
-		return Quit{}
+		command = Quit{}
 	case 'w':
 		if len(line) == 1 {
-			return Save{}
+			command = Save{}
 		}
 		res := strings.split(line, " ")
 		if len(res) >= 2 {
-			return SaveAs{res[1]}
+			command = SaveAs{res[1]}
 		}
 	case 'e':
 		res := strings.split(line, " ")
 		if len(res) == 1 {
-			return nil
+			write_error_to_command_line(cli, "ERROR: use `:e` <path>")
 		}
 		if len(res) >= 2 {
-			return EditFile{strings.clone(res[1])}
+			command = EditFile{strings.clone(res[1])}
 		}
 	}
-	return nil
+	return command
 }

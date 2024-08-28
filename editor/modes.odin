@@ -49,7 +49,7 @@ insert_mode :: proc(editor: ^Editor, event: Event) {
 	case todin.Event:
 		#partial switch event in e {
 		case todin.Enter:
-			append_line(&editor.buffer, saturating_sub(editor.cursor.y, 1, 0))
+			append_line(&editor.buffer, editor.cursor.y)
 			move_to_next_line_start(&editor.cursor, editor.viewport)
 		case todin.BackSpace:
 			editor_backspace(&editor.cursor, &editor.buffer)
@@ -83,33 +83,39 @@ command_mode :: proc(editor: ^Editor, event: Event) -> Event {
 		switch event in e {
 		case todin.Nothing, todin.FunctionKey, todin.Resize, todin.ArrowKey:
 		case todin.BackSpace:
-			remove_char_from_command_line()
+			remove_char_from_command_line(&editor.command_line)
 		case todin.Enter:
-			switch commands in check_command() {
+			if len(editor.command_line.error) > 0 {
+				delete_line(&editor.command_line.error)
+				editor.command_line.cursor.x = 0
+			}
+			switch commands in check_command(&editor.command_line) {
+			case ErrorMsg:
+				write_error_to_command_line(&editor.command_line, commands)
 			case Commands:
+				editor.mode = .normal
 				switch command in commands {
 				case Quit:
 					return Quit{}
 				case EditFile:
 					buffer := read_file(command.file_name)
 					if buffer == nil {
-						write_string_to_command_line(
-							fmt.aprintf("file %s does not exist", command.file_name),
+						write_error_to_command_line(
+							&editor.command_line,
+							fmt.tprintf("file %s does not exist", command.file_name),
 						)
+						editor.mode = .command
 						return nil
 					}
 					delete_buffer(&editor.buffer)
 					editor.current_file = command.file_name
 					editor.buffer = buffer
 					log.info(editor.current_file)
-					editor.mode = .normal
 				case SaveAs:
 					write_buffer_to_file(editor.buffer, command.file_name)
 					delete(command.file_name)
-					editor.mode = .normal
 				case Save:
 					write_buffer_to_file(editor.buffer, editor.current_file)
-					editor.mode = .normal
 				}
 			}
 		case todin.Key:
@@ -117,7 +123,7 @@ command_mode :: proc(editor: ^Editor, event: Event) -> Event {
 				editor.mode = .normal
 				return nil
 			}
-			write_rune_to_command_line(event.keyname)
+			write_rune_to_command_line(&editor.command_line, event.keyname)
 		case todin.EscapeKey:
 		}
 	case Init:
