@@ -6,7 +6,8 @@ import "core:log"
 
 normal_mode :: proc(editor: ^Editor, event: Event) {
 	event_to_string: string
-	switch e in event {case Init:
+	switch e in event {
+	case Init:
 	case todin.Event:
 		event_to_string = todin.event_to_string(e)
 		switch event_to_string {
@@ -37,6 +38,7 @@ normal_mode :: proc(editor: ^Editor, event: Event) {
 		//	editor_remove_line_and_move_up(&editor.cursor, &editor.buffer)
 		case "backspace":
 			editor_move_left(editor.buffer, &editor.cursor)
+		case "-":
 		}
 	case Quit:
 		break
@@ -86,7 +88,7 @@ command_mode :: proc(editor: ^Editor, event: Event) -> Event {
 			remove_char_from_command_line(&editor.command_line)
 		case todin.Enter:
 			if len(editor.command_line.error) > 0 {
-				delete_line(&editor.command_line.error)
+				delete_line(&editor.command_line.error[0])
 				editor.command_line.cursor.x = 0
 			}
 			switch commands in check_command(&editor.command_line) {
@@ -121,6 +123,9 @@ command_mode :: proc(editor: ^Editor, event: Event) -> Event {
 		case todin.Key:
 			if event.keyname == 'c' && event.control {
 				editor.mode = .normal
+				if len(editor.command_line.data) > 0 {
+					delete_line(&editor.command_line.data[0])
+				}
 				return nil
 			}
 			write_rune_to_command_line(&editor.command_line, event.keyname)

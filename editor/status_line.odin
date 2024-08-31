@@ -22,7 +22,7 @@ editor_mode_to_str :: proc(mode: EditorMode) -> string {
 	case .command:
 		return "command"
 	}
-	return ""
+	panic("invalid editor mode")
 }
 
 @(private = "file")
@@ -43,11 +43,16 @@ shorten_file_name :: proc(file_name: string) -> string {
 	return string(data[:]) if found else file_name
 }
 
-write_status_line :: proc(mode: EditorMode, file_name: string, cursor: Cursor) {
+write_status_line :: proc(
+	mode: EditorMode,
+	file_name: string,
+	cursor: Cursor,
+	#any_int scroll_amount: i32,
+) {
 	todin.move(STATUS_LINE_POSITION, 0)
 	todin.print(
 		editor_mode_to_str(mode),
 		shorten_file_name(file_name),
-		fmt.tprint(cursor.y, ":", cursor.x, sep = ""),
+		fmt.tprint(cursor.y + scroll_amount, ":", cursor.x, sep = ""),
 	)
 }

@@ -29,18 +29,22 @@ CliEvent :: union {
 ErrorMsg :: string
 
 CommandLine :: struct {
-	data:   Line,
-	error:  Line,
-	cursor: Cursor,
+	data:     Buffer,
+	error:    Buffer,
+	cursor:   Cursor,
+	position: i32,
 }
 
 // this is kinda meh
 set_command_line_position :: proc(cli: ^CommandLine, #any_int line: i32) {
-	cli.cursor.y = line
+	cli.position = line
 }
 
 write_rune_to_command_line :: proc(cli: ^CommandLine, r: rune) {
-	append(&cli.data, Cell{0, 0, byte(r)})
+	if len(cli.data) == 0 {
+		append(&cli.data, Line{})
+	}
+	append_rune_to_buffer(&cli.data, cli.cursor, r)
 	cli.cursor.x += 1
 }
 
@@ -51,32 +55,34 @@ write_string_to_command_line :: proc(cli: ^CommandLine, s: string) {
 }
 
 write_error_to_command_line :: proc(cli: ^CommandLine, s: string) {
-	for r in s {
-		append(&cli.error, Cell{0, 0, byte(r)})
+	for r, i in s {
+		append(&cli.error[0], Cell{0, 0, r})
 	}
 	cli.cursor.x = 0
 }
 
 remove_char_from_command_line :: proc(cli: ^CommandLine) {
-	delete_char(&cli.data, Cursor{x = cast(i32)cli.cursor.x})
-	cli.cursor.x -= 1
+	delete_char(&cli.data[0], cli.cursor)
+	cli.cursor.x = saturating_sub(cli.cursor.x, 1, 0)
 }
 
 print_command_line :: proc(cli: CommandLine) {
-	todin.move(cli.cursor.y, 0)
+	todin.move(cli.position, 0)
 	if len(cli.error) > 0 {
-		render_buffer_line(cli.error, {max_x = 1000}, 0)
+		render_buffer_with_scroll(cli.error, {max_y = cli.position, max_x = 1000})
 		return
 	}
 	todin.print(':')
 	tmp: [dynamic]byte
 	defer delete(tmp)
-	for cell in cli.data {
-		append(&tmp, cell.datum)
+	for line, i in cli.data {
+		for cell in line {
+			append(&tmp, byte(cell.datum))
+		}
 	}
 	todin.print(string(tmp[:]))
 	log.info(string(tmp[:]))
-	todin.move(cli.cursor.y, cli.cursor.x + 2)
+	todin.move(cli.position, cli.cursor.x + 2)
 }
 
 /* 
@@ -89,9 +95,9 @@ print_command_line :: proc(cli: CommandLine) {
 
 @(require_results)
 check_command :: proc(cli: ^CommandLine) -> (event: CliEvent) {
-	line := line_to_string(cli.data)
+	line := line_to_string(cli.data[0])
 	defer delete(line)
-	defer delete_line(&cli.data)
+	defer delete_line(&cli.data[0])
 	defer cli.cursor.x = 0
 
 	command: Commands

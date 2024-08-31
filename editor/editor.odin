@@ -36,11 +36,17 @@ Event :: union {
 }
 
 init :: proc(file: string) -> (editor: Editor) {
-	editor.viewport.max_y, editor.viewport.max_x = todin.get_max_cursor_pos()
-	editor.viewport.max_y -= STATUS_LINE_HEIGHT + COMMAND_LINE_HEIGHT
+	editor.viewport.max_y, editor.viewport.max_x =
+		todin.get_max_cols() - (STATUS_LINE_HEIGHT + COMMAND_LINE_HEIGHT), todin.get_max_rows()
 	editor.buffer = init_buffer(file)
 	todin.init()
 	todin.enter_alternate_screen()
+	set_status_line_position(editor.viewport.max_y + 1)
+	set_command_line_position(&editor.command_line, editor.viewport.max_y + 2)
+	render_buffer_with_scroll(editor.buffer, editor.viewport)
+	write_status_line(editor.mode, editor.current_file, editor.cursor, 0)
+	todin.reset_cursor()
+	editor.current_file = file
 	return editor
 }
 
@@ -103,13 +109,10 @@ run :: proc(editor: ^Editor) {
 			os.exit(1)
 		}
 	}
-	context.logger = init_logger_from_fd(arg_info.log_file)
 
+	context.logger = init_logger_from_fd(arg_info.log_file)
 	editor^ = init(arg_info.file)
-	editor.current_file = arg_info.file
-	// this is annoying
-	set_status_line_position(editor.viewport.max_y + 1)
-	set_command_line_position(&editor.command_line, editor.viewport.max_y + 2)
+	log.info(editor.cursor)
 
 	when ODIN_DEBUG {
 		track: mem.Tracking_Allocator
@@ -117,11 +120,6 @@ run :: proc(editor: ^Editor) {
 		context.allocator = mem.tracking_allocator(&track)
 		defer log_leaks(&track)
 	}
-
-	render_buffer_with_scroll(editor.buffer, editor.viewport)
-	write_status_line(editor.mode, editor.current_file, editor.cursor)
-	todin.reset_cursor()
-	log.info(editor.cursor)
 
 	loop: for {
 		if todin.poll() {
@@ -133,19 +131,8 @@ run :: proc(editor: ^Editor) {
 			case Quit:
 				break loop
 			}
-			render_buffer_with_scroll(editor.buffer, editor.viewport)
-			write_status_line(editor.mode, editor.current_file, editor.cursor)
-			if editor.mode == .command {
-				print_command_line(editor.command_line)
-			}
-			log.info(editor.current_file)
+			render(editor^)
 			// TODO: remove the need for todin.move() and do rendering where it can remember or not interfere with the tui's cursor
-			if editor.mode != .command {
-				todin.move(
-					saturating_add(editor.cursor.y, 1, editor.viewport.max_y),
-					saturating_add(editor.cursor.x, 1, editor.viewport.max_x),
-				)
-			}
 		}
 	}
 	deinit()

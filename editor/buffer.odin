@@ -8,7 +8,7 @@ import "core:unicode/utf8"
 
 Cell :: struct {
 	fg, bg: int,
-	datum:  byte,
+	datum:  rune,
 }
 
 Line :: [dynamic]Cell
@@ -56,7 +56,7 @@ read_file_from_data :: proc(data: []byte) -> (buffer: Buffer) {
 	line, col: int
 	append(&buffer, Line{})
 	for b, i in data {
-		append(&buffer[line], Cell{0, 0, b})
+		append(&buffer[line], Cell{0, 0, rune(b)})
 		col += 1
 		if b == '\n' {
 			append(&buffer, Line{})
@@ -76,7 +76,7 @@ append_rune_to_buffer :: proc(buffer: ^Buffer, cursor: Cursor, key: rune) {
 	if offset > saturating_sub(buffer_length(buffer^), 1, 0) {
 		panic("attempting to write to unallocated line")
 	}
-	inject_at(&buffer[offset], cast(int)cursor.x, Cell{0, 0, byte(key)})
+	inject_at(&buffer[offset], cast(int)cursor.x, Cell{0, 0, key})
 }
 
 delete_char :: proc(line: ^Line, cursor: Cursor) {
@@ -108,7 +108,7 @@ write_buffer_to_file :: proc(buffer: Buffer, file: string) {
 	bytes: [dynamic]byte
 	for line in buffer {
 		for cell in line {
-			append(&bytes, cell.datum)
+			append(&bytes, byte(cell.datum))
 		}
 	}
 	os.write_entire_file(file, bytes[:])
@@ -116,17 +116,6 @@ write_buffer_to_file :: proc(buffer: Buffer, file: string) {
 
 buffer_length :: proc(buffer: Buffer) -> i32 {
 	return cast(i32)len(buffer)
-}
-
-count :: proc(buffer: Buffer, char: rune) -> (count: i32) {
-	for line in buffer {
-		for cell in line {
-			if rune(cell.datum) == char {
-				count += 1
-			}
-		}
-	}
-	return count
 }
 
 line_length :: proc(buffer: Buffer, #any_int line: i32) -> i32 {
@@ -147,7 +136,7 @@ is_line_empty :: proc(buffer: Buffer, #any_int line: i32) -> bool {
 line_to_string :: proc(line: Line) -> string {
 	bytes := make([]byte, len(line))
 	for cell, i in line {
-		bytes[i] = cell.datum
+		bytes[i] = byte(cell.datum)
 	}
 	return string(bytes)
 }

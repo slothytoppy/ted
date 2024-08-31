@@ -15,7 +15,7 @@ move_up :: proc(cursor: ^Cursor) {
 }
 
 move_down :: proc(cursor: ^Cursor, viewport: Viewport) {
-	cursor.y = saturating_add(cursor.y, 1, viewport.max_y - 1)
+	cursor.y = saturating_add(cursor.y, 1, viewport.max_y)
 	log.debug(cursor, viewport)
 }
 
