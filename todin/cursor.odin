@@ -5,31 +5,53 @@ import "core:os"
 import "core:strconv"
 
 reset_cursor :: proc() {
-	os.write_string(os.stdin, "\e[H")
+	_buffer.pos = {0, 0}
+	//os.write_string(os.stdin, "\e[H")
 }
 
 move :: proc(#any_int y, x: i32) {
-	fmt.printf("\e[%d;%dH", y, x)
+	_buffer.pos = {
+		y = y,
+		x = x,
+	}
 }
 
 move_up :: proc() {
-	fmt.printf("\e[1A")
+	if _buffer.pos.y > 0 {
+		_buffer.pos.y -= 1
+	}
+	//fmt.printf("\e[1A")
 }
 
 move_down :: proc() {
-	fmt.printf("\e[1B")
+	if _buffer.pos.y < GLOBAL_WINDOW_SIZE.cols - 1 {
+		line_amount := cast(i32)len(_buffer.data) - 1
+		if line_amount < _buffer.pos.y {
+			inject_at(&_buffer.data, cast(int)_buffer.pos.y, Line{})
+		}
+		_buffer.pos.y += 1
+	}
+	//fmt.printf("\e[1B")
 }
 
 move_right :: proc() {
-	fmt.printf("\e[1C")
+	if _buffer.pos.x < GLOBAL_WINDOW_SIZE.rows {
+		_buffer.pos.x += 1
+	}
+	//fmt.printf("\e[1C")
 }
 
 move_left :: proc() {
-	fmt.printf("\e[1D")
+	if _buffer.pos.x > 0 {
+		_buffer.pos.x -= 1
+	}
+	//fmt.printf("\e[1D")
 }
 
 move_to_start_of_next_line :: proc() {
-	fmt.printf("\e[1E")
+	move_down()
+	_buffer.pos.x = 0
+	//fmt.printf("\e[1E")
 }
 
 scroll_up :: proc() {
@@ -59,6 +81,7 @@ get_current_rows :: proc() -> i32 {
 }
 
 get_cursor_pos :: proc() -> (cols, rows: int) {
+	/*
 	buf: [20]byte
 	os.write_string(os.stdin, "\e[6n")
 	os.read(os.stdin, buf[:])
@@ -83,6 +106,9 @@ get_cursor_pos :: proc() -> (cols, rows: int) {
 			break
 		}
 	}
+  */
+	cols = cast(int)_buffer.pos.y
+	rows = cast(int)_buffer.pos.x
 	return cols, rows
 }
 

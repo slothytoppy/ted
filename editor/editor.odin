@@ -41,11 +41,11 @@ init :: proc(file: string) -> (editor: Editor) {
 	editor.buffer = init_buffer(file)
 	todin.init()
 	todin.enter_alternate_screen()
-	set_status_line_position(editor.viewport.max_y + 1)
-	set_command_line_position(&editor.command_line, editor.viewport.max_y + 2)
-	render_buffer_with_scroll(editor.buffer, editor.viewport)
-	write_status_line(editor.mode, editor.current_file, editor.cursor, 0)
+	set_status_line_position(editor.viewport.max_y)
+	set_command_line_position(&editor.command_line, editor.viewport.max_y + 1)
+	render(editor)
 	todin.reset_cursor()
+	todin.refresh()
 	editor.current_file = file
 	return editor
 }
