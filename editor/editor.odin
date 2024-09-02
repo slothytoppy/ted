@@ -85,13 +85,13 @@ update :: proc(editor: ^Editor, event: Event) -> (new_event: Event) {
 	}
 	switch editor.mode {
 	case .insert:
-		insert_mode(editor, event)
+		return insert_mode(editor, event)
 	case .normal:
-		normal_mode(editor, event)
+		return normal_mode(editor, event)
 	case .command:
-		new_event = command_mode(editor, event)
+		return command_mode(editor, event)
 	}
-	return new_event
+	return nil
 }
 
 run :: proc(editor: ^Editor) {
@@ -125,14 +125,14 @@ run :: proc(editor: ^Editor) {
 		if todin.poll() {
 			event: Event = todin.read()
 			event = update(editor, event)
-			switch e in event {
-			case todin.Event:
+			#partial switch e in event {
 			case Init:
 			case Quit:
 				break loop
 			}
-			render(editor^)
+			//render(editor^, RenderScreen{})
 			// TODO: remove the need for todin.move() and do rendering where it can remember or not interfere with the tui's cursor
+			render(editor^)
 		}
 	}
 	deinit()

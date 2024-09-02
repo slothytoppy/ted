@@ -4,7 +4,7 @@ import "../todin"
 import "core:fmt"
 import "core:log"
 
-normal_mode :: proc(editor: ^Editor, event: Event) {
+normal_mode :: proc(editor: ^Editor, event: Event) -> Event {
 	event_to_string: string
 	switch e in event {
 	case Init:
@@ -43,9 +43,10 @@ normal_mode :: proc(editor: ^Editor, event: Event) {
 	case Quit:
 		break
 	}
+	return event
 }
 
-insert_mode :: proc(editor: ^Editor, event: Event) {
+insert_mode :: proc(editor: ^Editor, event: Event) -> Event {
 	editor_event_to_string: string
 	switch e in event {
 	case todin.Event:
@@ -62,7 +63,7 @@ insert_mode :: proc(editor: ^Editor, event: Event) {
 				case "<c-c>":
 					editor.mode = .normal
 				}
-				return
+				return nil
 			}
 			append_rune_to_buffer(&editor.buffer, editor.cursor, event.keyname)
 			move_right(&editor.cursor, editor.viewport)
@@ -77,6 +78,7 @@ insert_mode :: proc(editor: ^Editor, event: Event) {
 	case Quit:
 		break
 	}
+	return event
 }
 
 command_mode :: proc(editor: ^Editor, event: Event) -> Event {

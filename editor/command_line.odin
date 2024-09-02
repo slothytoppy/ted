@@ -75,7 +75,7 @@ print_command_line :: proc(cli: CommandLine) {
 	todin.print(':')
 	tmp: [dynamic]byte
 	defer delete(tmp)
-	for line, i in cli.data {
+	for line in cli.data {
 		for cell in line {
 			append(&tmp, byte(cell.datum))
 		}

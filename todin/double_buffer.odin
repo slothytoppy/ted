@@ -2,6 +2,7 @@ package todin
 
 import "core:fmt"
 import "core:log"
+import "core:mem"
 import "core:os"
 
 @(private)
@@ -28,18 +29,12 @@ Buffer :: struct {
 @(private)
 _buffer: Buffer
 
-@(init)
-buffer_init :: proc() {
-	append(&_buffer.data, Line{})
-}
-
 append_rune :: proc(r: rune) {
 	_buffer.dirty = true
 	if _buffer.pos.y > cast(i32)len(_buffer.data) - 1 {
 		inject_at(&_buffer.data, cast(int)_buffer.pos.y, Line{})
 	}
-	append(&_buffer.data[_buffer.pos.y], Cell{datum = r})
-	_buffer.data[_buffer.pos.y][saturating_sub(_buffer.pos.x, 1, 0)].dirty = true
+	append(&_buffer.data[_buffer.pos.y], Cell{datum = r, dirty = true})
 	_buffer.pos.x += 1
 }
 
@@ -75,6 +70,7 @@ refresh :: proc() {
 				}
 			}
 			os.write_string(os.stdin, "\e[1E")
+			delete(line)
 		}
 		fmt.printf("\e[%d;%dH", _buffer.pos.y, _buffer.pos.x)
 	}

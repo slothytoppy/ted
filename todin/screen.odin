@@ -36,7 +36,7 @@ move_print :: proc(y, x: int, args: ..any) {
 }
 
 print :: proc(args: ..any) {
-	append_string(fmt.tprint(..args))
+	append_string(fmt.tprint(..args, sep = ""))
 }
 
 delch :: proc() {

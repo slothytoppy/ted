@@ -2,6 +2,7 @@ package editor
 
 import "../todin"
 import "core:fmt"
+import "core:strings"
 
 STATUS_LINE_HEIGHT :: 1
 
@@ -40,7 +41,10 @@ shorten_file_name :: proc(file_name: string) -> string {
 			break
 		}
 	}
-	return string(data[:]) if found else file_name
+	if !found {
+		append(&data, file_name)
+	}
+	return string(data[:])
 }
 
 write_status_line :: proc(
@@ -50,9 +54,13 @@ write_status_line :: proc(
 	#any_int scroll_amount: i32,
 ) {
 	todin.move(STATUS_LINE_POSITION, 0)
+	file_name := shorten_file_name(file_name)
+	defer delete(file_name)
 	todin.print(
 		editor_mode_to_str(mode),
-		shorten_file_name(file_name),
+		" ",
+		file_name,
+		" ",
 		fmt.tprint(cursor.y + scroll_amount, ":", cursor.x, sep = ""),
 	)
 }
