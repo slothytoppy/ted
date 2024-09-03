@@ -2,7 +2,6 @@ package editor
 
 import "../todin"
 import "core:flags"
-import "core:fmt"
 import "core:log"
 import "core:mem"
 import "core:os"

@@ -1,7 +1,6 @@
 package editor
 
 import "core:flags"
-import "core:fmt"
 import "core:os"
 
 Args_Info :: struct {

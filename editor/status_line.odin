@@ -2,7 +2,6 @@ package editor
 
 import "../todin"
 import "core:fmt"
-import "core:strings"
 
 STATUS_LINE_HEIGHT :: 1
 

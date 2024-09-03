@@ -1,8 +1,6 @@
 package todin
 
 import "core:fmt"
-import "core:log"
-import "core:mem"
 import "core:os"
 
 @(private)

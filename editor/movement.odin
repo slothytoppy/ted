@@ -1,6 +1,5 @@
 package editor
 
-import "../todin"
 import "core:log"
 
 CursorEvent :: enum {

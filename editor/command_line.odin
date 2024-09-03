@@ -55,7 +55,7 @@ write_string_to_command_line :: proc(cli: ^CommandLine, s: string) {
 }
 
 write_error_to_command_line :: proc(cli: ^CommandLine, s: string) {
-	for r, i in s {
+	for r in s {
 		append(&cli.error[0], Cell{0, 0, r})
 	}
 	cli.cursor.x = 0

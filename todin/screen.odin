@@ -1,10 +1,7 @@
 package todin
 
 import "core:fmt"
-import "core:log"
 import "core:os"
-import "core:strings"
-import "core:testing"
 
 // each buffer has to emulate the real screen ie, only say 48*105 or 48 cols and 105 rows
 
@@ -24,7 +21,7 @@ clear_screen :: proc() {
 }
 
 delete_line :: proc() {
-	for cell in _buffer.data[_buffer.pos.y] {
+	for _ in _buffer.data[_buffer.pos.y] {
 		delch()
 	}
 	//os.write_string(os.stdin, "\e[2K")

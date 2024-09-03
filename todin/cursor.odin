@@ -1,8 +1,6 @@
 package todin
 
 import "core:fmt"
-import "core:os"
-import "core:strconv"
 
 reset_cursor :: proc() {
 	_buffer.pos = {0, 0}

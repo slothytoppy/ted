@@ -4,7 +4,6 @@ import "../todin"
 import "core:log"
 import "core:slice"
 import "core:strconv"
-import "core:strings"
 
 render_buffer_line :: proc(
 	line: Line,
@@ -12,14 +11,14 @@ render_buffer_line :: proc(
 	#any_int tab_width: i32,
 	cursor: Cursor = {},
 ) {
-	for i in 0 ..< cursor.y {
+	for _ in 0 ..< cursor.y {
 		todin.move_to_start_of_next_line()
 	}
-	for i in 0 ..< cursor.x {
+	for _ in 0 ..< cursor.x {
 		todin.move_right()
 	}
 	for cell, idx in line {
-		if cast(i32)idx > viewport.max_x - cast(i32)cursor.x {
+		if cast(i32)idx > viewport.max_x - cursor.x {
 			break
 		}
 		switch cell.datum {
@@ -28,7 +27,7 @@ render_buffer_line :: proc(
 			break
 		case '\t':
 			// TODO: make this configurable
-			for i in 0 ..< tab_width {
+			for _ in 0 ..< tab_width {
 				todin.print(" ")
 			}
 		case:

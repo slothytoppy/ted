@@ -1,7 +1,5 @@
 package editor
 
-import "../todin"
-import "core:fmt"
 import "core:log"
 import "core:os"
 import "core:unicode/utf8"
@@ -33,6 +31,7 @@ init_buffer_from_file :: proc(file: string) -> (buffer: Buffer) {
 	}
 	buffer = init_buffer_from_bytes(data)
 	defer delete(data)
+	log.info(data, buffer)
 	return buffer
 }
 
@@ -55,8 +54,10 @@ read_file_from_string :: proc(file: string) -> (buffer: Buffer) {
 read_file_from_data :: proc(data: []byte) -> (buffer: Buffer) {
 	line, col: int
 	append(&buffer, Line{})
-	for b, i in data {
-		append(&buffer[line], Cell{0, 0, rune(b)})
+	runes := utf8.string_to_runes(string(data[:]))
+	defer delete(runes)
+	for b in runes {
+		append(&buffer[line], Cell{0, 0, b})
 		col += 1
 		if b == '\n' {
 			append(&buffer, Line{})
