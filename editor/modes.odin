@@ -41,9 +41,9 @@ normal_mode :: proc(editor: ^Editor, event: Event) -> Event {
 		case "-":
 		}
 	case Quit:
-		break
+		return Quit{}
 	}
-	return event
+	return nil
 }
 
 insert_mode :: proc(editor: ^Editor, event: Event) -> Event {
@@ -76,9 +76,9 @@ insert_mode :: proc(editor: ^Editor, event: Event) -> Event {
 		}
 	case Init:
 	case Quit:
-		break
+		return Quit{}
 	}
-	return event
+	return nil
 }
 
 command_mode :: proc(editor: ^Editor, event: Event) -> Event {
@@ -89,10 +89,6 @@ command_mode :: proc(editor: ^Editor, event: Event) -> Event {
 		case todin.BackSpace:
 			remove_char_from_command_line(&editor.command_line)
 		case todin.Enter:
-			if len(editor.command_line.error) > 0 {
-				delete_line(&editor.command_line.error[0])
-				editor.command_line.cursor.x = 0
-			}
 			switch commands in check_command(&editor.command_line) {
 			case ErrorMsg:
 				write_error_to_command_line(&editor.command_line, commands)
@@ -125,9 +121,7 @@ command_mode :: proc(editor: ^Editor, event: Event) -> Event {
 		case todin.Key:
 			if event.keyname == 'c' && event.control {
 				editor.mode = .normal
-				if len(editor.command_line.data) > 0 {
-					delete_line(&editor.command_line.data[0])
-				}
+				clear_command_line(&editor.command_line)
 				return nil
 			}
 			write_rune_to_command_line(&editor.command_line, event.keyname)

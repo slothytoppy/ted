@@ -15,7 +15,7 @@ editor_move_up :: proc(buffer: Buffer, cursor: ^Cursor, viewport: ^Viewport) {
 	line := saturating_sub(cursor.y, 1, 0)
 	line_len := line_length(buffer, line)
 	x := cursor.x
-	log.info(line_len, line, cursor.y)
+	log.debug(line_len, line, cursor.y)
 	if x >= line_len {
 		cursor.virtual_x = x
 		cursor.x = line_len
@@ -33,8 +33,8 @@ editor_move_down :: proc(buffer: Buffer, cursor: ^Cursor, viewport: ^Viewport) {
 	line := saturating_add(cursor.y, 1, viewport.max_y)
 	line_len := line_length(buffer, line)
 	x := cursor.x
-	log.info(line_len, line, cursor.y)
-	if x >= line_len {
+	log.debug(line_len, line, cursor.y)
+	if x > line_len {
 		cursor.virtual_x = x
 		cursor.x = line_len
 	} else {

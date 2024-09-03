@@ -2,15 +2,24 @@ package editor
 
 import "../todin"
 import "core:log"
+import "core:slice"
 import "core:strconv"
 import "core:strings"
 
-render_buffer_line :: proc(line: Line, viewport: Viewport, #any_int tab_width: i32, offset := 0) {
-	for i in 0 ..< offset {
+render_buffer_line :: proc(
+	line: Line,
+	viewport: Viewport,
+	#any_int tab_width: i32,
+	cursor: Cursor = {},
+) {
+	for i in 0 ..< cursor.y {
+		todin.move_to_start_of_next_line()
+	}
+	for i in 0 ..< cursor.x {
 		todin.move_right()
 	}
 	for cell, idx in line {
-		if cast(i32)idx > viewport.max_x - cast(i32)offset {
+		if cast(i32)idx > viewport.max_x - cast(i32)cursor.x {
 			break
 		}
 		switch cell.datum {
@@ -29,23 +38,40 @@ render_buffer_line :: proc(line: Line, viewport: Viewport, #any_int tab_width: i
 }
 
 format_line_num :: proc(#any_int line_num: int) -> string {
-	s: [6]byte = 32
+	s := make([dynamic]byte, 6)
+	inject_at(&s, saturating_sub(len(s), 1, 0), 32)
+
+	//assert(line_num < 99999, "line number too big pepehands")
+
+	//s: [6]byte = 32
 	line_str := strconv.itoa(s[:], line_num)
-	offset := saturating_sub(len(s), 1, 0)
-	s[0] = line_str[0]
-	#reverse for r, i in line_str {
-		s[offset] = byte(r)
-		s[i] = 32
-		offset -= 1
+	line_len := len(line_str)
+
+	if line_len >= len(s) {
+		return string(s[:])
 	}
-	log.info(s)
-	return strings.clone(string(s[:]))
+
+	right := len(s) - 1 - 1
+	left := line_len - 1
+
+	for {
+		slice.swap(s[:], left, right)
+		if left == 0 {
+			s[saturating_sub(len(s), 1, 0)] = 32
+			break
+		}
+		right -= 1
+		left -= 1
+	}
+	//slice.fill(s[:len(line_str)], 32)
+
+	log.debug(s[:])
+	return string(s[:])
 }
 
 render_buffer_with_scroll :: proc(buff: Buffer, viewport: Viewport) {
 	todin.clear_screen()
 	todin.reset_cursor()
-	offset := 1
 	tab_width := 4
 	line_num: string
 	for line_idx, i in viewport.scroll ..= viewport.max_y + viewport.scroll - 1 {
@@ -54,23 +80,47 @@ render_buffer_with_scroll :: proc(buff: Buffer, viewport: Viewport) {
 		}
 		line_num = format_line_num(line_idx)
 		defer delete(line_num)
-		todin.print(line_num, " ")
-		render_buffer_line(buff[line_idx], viewport, tab_width, offset)
+		todin.print(line_num)
+		render_buffer_line(buff[line_idx], viewport, tab_width, Cursor{x = cast(i32)len(line_num)})
 		todin.move_to_start_of_next_line()
 	}
 }
 
-render :: proc(editor: Editor) {
-	todin.clear_screen()
-	todin.reset_cursor()
-	y, x :=
-		saturating_add(editor.cursor.y, 1, editor.viewport.max_y),
-		saturating_add(editor.cursor.x, 1, editor.viewport.max_x)
-	render_buffer_with_scroll(editor.buffer, editor.viewport)
-	write_status_line(editor.mode, editor.current_file, editor.cursor, editor.viewport.scroll)
-	if editor.mode == .command {
-		print_command_line(editor.command_line)
+Renderable :: struct {
+	current_file: string,
+	cursor:       Cursor,
+	buffer:       Buffer,
+	viewport:     Viewport,
+	mode:         EditorMode,
+	command_line: CommandLine,
+}
+
+LineNum :: distinct int
+Screen :: struct {}
+Scroll :: struct {}
+
+RenderEvent :: union {
+	Cursor,
+	LineNum,
+	Screen,
+	Scroll,
+}
+
+render :: proc(renderable: Renderable) {
+	render_buffer_with_scroll(renderable.buffer, renderable.viewport)
+	write_status_line(
+		renderable.mode,
+		renderable.current_file,
+		renderable.cursor,
+		renderable.viewport.scroll,
+	)
+	if renderable.mode == .command {
+		print_command_line(renderable.command_line)
 	}
-	todin.move(y, x)
+	y, x :=
+		saturating_add(renderable.cursor.y, 1, renderable.viewport.max_y),
+		saturating_add(renderable.cursor.x, 1, renderable.viewport.max_x - 6)
+	todin.move(y, x + 6)
+	log.debug(y, x)
 	todin.refresh()
 }

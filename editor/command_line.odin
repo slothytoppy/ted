@@ -41,7 +41,7 @@ set_command_line_position :: proc(cli: ^CommandLine, #any_int line: i32) {
 }
 
 write_rune_to_command_line :: proc(cli: ^CommandLine, r: rune) {
-	if len(cli.data) == 0 {
+	if len(cli.data) <= 0 {
 		append(&cli.data, Line{})
 	}
 	append_rune_to_buffer(&cli.data, cli.cursor, r)
@@ -62,11 +62,17 @@ write_error_to_command_line :: proc(cli: ^CommandLine, s: string) {
 }
 
 remove_char_from_command_line :: proc(cli: ^CommandLine) {
+	if len(cli.data) <= 0 {
+		return
+	}
 	delete_char(&cli.data[0], cli.cursor)
 	cli.cursor.x = saturating_sub(cli.cursor.x, 1, 0)
 }
 
 print_command_line :: proc(cli: CommandLine) {
+	if len(cli.data) <= 0 || len(cli.data[0]) <= 0 {
+		return
+	}
 	todin.move(cli.position, 0)
 	if len(cli.error) > 0 {
 		render_buffer_with_scroll(cli.error, {max_y = cli.position, max_x = 1000})
@@ -85,26 +91,25 @@ print_command_line :: proc(cli: CommandLine) {
 	todin.move(cli.position, cli.cursor.x + 2)
 }
 
-/* 
-
-  `:e` <path> 
-  what if path doesnt exist or you do only `:e`?
-  i need to give the user an error somehow
-
-*/
+clear_command_line :: proc(cli: ^CommandLine) {
+	if len(cli.data) >= 1 {
+		clear(&cli.data[0])
+		cli.cursor.x = 0
+	}
+}
 
 @(require_results)
 check_command :: proc(cli: ^CommandLine) -> (event: CliEvent) {
+	if len(cli.data) <= 0 || len(cli.data[0]) <= 0 {
+		return
+	}
+
 	line := line_to_string(cli.data[0])
 	defer delete(line)
-	defer delete_line(&cli.data[0])
-	defer cli.cursor.x = 0
+	defer clear_command_line(cli)
 
 	command: Commands
 
-	if len(line) <= 0 {
-		return
-	}
 	switch line[0] {
 	case 'q':
 		command = Quit{}

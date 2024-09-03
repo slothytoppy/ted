@@ -43,10 +43,18 @@ init :: proc(file: string) -> (editor: Editor) {
 	todin.enter_alternate_screen()
 	set_status_line_position(editor.viewport.max_y)
 	set_command_line_position(&editor.command_line, editor.viewport.max_y + 1)
-	render(editor)
+	editor.current_file = file
+	renderable: Renderable = {
+		current_file = editor.current_file,
+		cursor       = editor.cursor,
+		viewport     = editor.viewport,
+		mode         = editor.mode,
+		command_line = editor.command_line,
+		buffer       = editor.buffer,
+	}
+	render(renderable)
 	todin.reset_cursor()
 	todin.refresh()
-	editor.current_file = file
 	return editor
 }
 
@@ -55,7 +63,7 @@ deinit :: proc() {
 	todin.deinit()
 }
 
-update :: proc(editor: ^Editor, event: Event) -> (new_event: Event) {
+update :: proc(editor: ^Editor, event: Event) -> Event {
 	todin_event: todin.Event = todin.Nothing{}
 	switch e in event {
 	case Init:
@@ -123,16 +131,33 @@ run :: proc(editor: ^Editor) {
 
 	loop: for {
 		if todin.poll() {
-			event: Event = todin.read()
-			event = update(editor, event)
-			#partial switch e in event {
+			input_event: Event = todin.read()
+			render_event := update(editor, input_event)
+			renderable: Renderable = {
+				current_file = editor.current_file,
+				cursor       = editor.cursor,
+				viewport     = editor.viewport,
+				mode         = editor.mode,
+				command_line = editor.command_line,
+				buffer       = editor.buffer,
+			}
+			render(renderable)
+			#partial switch e in render_event {
+			/*
+			case todin.Event:
+				#partial switch event in e {
+				case todin.Key, todin.ArrowKey:
+				case todin.BackSpace:
+				case todin.Enter:
+				}
+        */
 			case Init:
 			case Quit:
 				break loop
 			}
 			//render(editor^, RenderScreen{})
 			// TODO: remove the need for todin.move() and do rendering where it can remember or not interfere with the tui's cursor
-			render(editor^)
+			//render(renderable)
 		}
 	}
 	deinit()

@@ -94,7 +94,7 @@ delete_buffer :: proc(buffer: ^Buffer) {
 }
 
 delete_line :: proc(line: ^Line) {
-	delete(line[:])
+	clear(line)
 }
 
 remove_line :: proc(buffer: ^Buffer, #any_int index: i32) {
