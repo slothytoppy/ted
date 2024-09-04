@@ -29,8 +29,15 @@ editor_move_up :: proc(buffer: Buffer, cursor: ^Cursor, viewport: ^Viewport) {
 }
 
 editor_move_down :: proc(buffer: Buffer, cursor: ^Cursor, viewport: ^Viewport) {
-	line := saturating_add(cursor.y, 1, viewport.max_y)
+	line := saturating_add(
+		cursor.y,
+		1,
+		min(viewport.max_y, cast(i32)saturating_sub(len(buffer), 1, 0)),
+	)
 	line_len := line_length(buffer, line)
+	if line_len < 0 {
+		return
+	}
 	x := cursor.x
 	log.debug(line_len, line, cursor.y)
 	if x > line_len {

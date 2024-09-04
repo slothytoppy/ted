@@ -38,7 +38,9 @@ render_buffer_line :: proc(
 
 format_line_num :: proc(#any_int line_num: int) -> string {
 	s := make([dynamic]byte, 6)
-	inject_at(&s, saturating_sub(len(s), 1, 0), 32)
+	for &s, i in s {
+		s = 32
+	}
 
 	//assert(line_num < 99999, "line number too big pepehands")
 

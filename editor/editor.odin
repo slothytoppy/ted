@@ -34,15 +34,30 @@ Event :: union {
 	Quit,
 }
 
-init :: proc(file: string) -> (editor: Editor) {
+init :: proc() -> (editor: Editor, log_file: os.Handle) {
+	arg_info: Args_Info
+	error := parse_cli_arguments(&arg_info)
+	switch e in error {
+	case EditorError:
+		switch e {
+		case .file_doesnt_exist, .no_file, .none:
+		}
+	case flags.Error:
+		switch error in e {
+		case flags.Parse_Error, flags.Help_Request, flags.Open_File_Error, flags.Validation_Error:
+			print_error(error)
+			os.exit(1)
+		}
+	}
 	editor.viewport.max_y, editor.viewport.max_x =
 		todin.get_max_cols() - (STATUS_LINE_HEIGHT + COMMAND_LINE_HEIGHT), todin.get_max_rows()
-	editor.buffer = init_buffer(file)
+	editor.buffer = init_buffer(arg_info.file)
 	todin.init()
 	todin.enter_alternate_screen()
 	set_status_line_position(editor.viewport.max_y)
 	set_command_line_position(&editor.command_line, editor.viewport.max_y + 1)
-	editor.current_file = file
+	editor.current_file = arg_info.file
+	editor.cursor.y = cast(i32)arg_info.position
 	renderable: Renderable = {
 		current_file = editor.current_file,
 		cursor       = editor.cursor,
@@ -54,7 +69,7 @@ init :: proc(file: string) -> (editor: Editor) {
 	render(renderable)
 	todin.reset_cursor()
 	todin.refresh()
-	return editor
+	return editor, arg_info.log_file
 }
 
 deinit :: proc() {
@@ -102,23 +117,9 @@ update :: proc(editor: ^Editor, event: Event) -> Event {
 }
 
 run :: proc(editor: ^Editor) {
-	arg_info: Args_Info
-	error := parse_cli_arguments(&arg_info)
-	switch e in error {
-	case EditorError:
-		switch e {
-		case .file_doesnt_exist, .no_file, .none:
-		}
-	case flags.Error:
-		switch error in e {
-		case flags.Parse_Error, flags.Help_Request, flags.Open_File_Error, flags.Validation_Error:
-			print_error(error)
-			os.exit(1)
-		}
-	}
-
-	context.logger = init_logger_from_fd(arg_info.log_file)
-	editor^ = init(arg_info.file)
+	log_file: os.Handle
+	editor^, log_file = init()
+	context.logger = init_logger_from_fd(log_file)
 	log.info(editor.cursor)
 
 	when ODIN_DEBUG {
