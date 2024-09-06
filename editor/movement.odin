@@ -1,5 +1,7 @@
 package editor
 
+import "../todin"
+import "buffer"
 import "core:log"
 
 CursorEvent :: enum {
@@ -10,9 +12,9 @@ CursorEvent :: enum {
 	right,
 }
 
-editor_move_up :: proc(buffer: Buffer, cursor: ^Cursor, viewport: ^Viewport) {
+editor_move_up :: proc(buf: buffer.Buffer, cursor: ^Cursor, viewport: ^Viewport) {
 	line := saturating_sub(cursor.y, 1, 0)
-	line_len := line_length(buffer, line)
+	line_len := buffer.line_length(buf, line)
 	x := cursor.x
 	log.debug(line_len, line, cursor.y)
 	if x >= line_len {
@@ -28,13 +30,13 @@ editor_move_up :: proc(buffer: Buffer, cursor: ^Cursor, viewport: ^Viewport) {
 	move_up(cursor)
 }
 
-editor_move_down :: proc(buffer: Buffer, cursor: ^Cursor, viewport: ^Viewport) {
+editor_move_down :: proc(buf: buffer.Buffer, cursor: ^Cursor, viewport: ^Viewport) {
 	line := saturating_add(
 		cursor.y,
 		1,
-		min(viewport.max_y, cast(i32)saturating_sub(len(buffer), 1, 0)),
+		min(viewport.max_y, cast(i32)saturating_sub(len(buf), 1, 0)),
 	)
-	line_len := line_length(buffer, line)
+	line_len := buffer.line_length(buf, line)
 	if line_len < 0 {
 		return
 	}
@@ -49,21 +51,21 @@ editor_move_down :: proc(buffer: Buffer, cursor: ^Cursor, viewport: ^Viewport) {
 			cursor.virtual_x = 0
 		}
 	}
-	editor_scroll_down(cursor, viewport, buffer)
+	editor_scroll_down(cursor, viewport, buf)
 	move_down(cursor, viewport^)
 }
 
-editor_move :: proc(event: CursorEvent, buffer: Buffer, cursor: ^Cursor, viewport: ^Viewport) {
+editor_move :: proc(event: CursorEvent, buf: buffer.Buffer, cursor: ^Cursor, viewport: ^Viewport) {
 	switch event {
 	case .none:
 	case .up:
-		editor_move_up(buffer, cursor, viewport)
+		editor_move_up(buf, cursor, viewport)
 	case .down:
-		editor_move_down(buffer, cursor, viewport)
+		editor_move_down(buf, cursor, viewport)
 	case .left:
-		editor_move_left(buffer, cursor)
+		editor_move_left(buf, cursor)
 	case .right:
-		editor_move_right(buffer, cursor, viewport^)
+		editor_move_right(buf, cursor, viewport^)
 	}
 }
 
@@ -73,8 +75,8 @@ editor_scroll_up :: proc(cursor: ^Cursor, viewport: ^Viewport) {
 	}
 }
 
-editor_scroll_down :: proc(cursor: ^Cursor, viewport: ^Viewport, buffer: Buffer) {
-	buff_len := saturating_sub(buffer_length(buffer), 1, 0)
+editor_scroll_down :: proc(cursor: ^Cursor, viewport: ^Viewport, buf: buffer.Buffer) {
+	buff_len := saturating_sub(buffer.buffer_length(buf), 1, 0)
 	if cursor.y >= viewport.max_y - 1 {
 		if viewport.scroll + viewport.max_y < buff_len {
 			viewport.scroll = saturating_add(viewport.scroll, 1, buff_len)
@@ -82,16 +84,16 @@ editor_scroll_down :: proc(cursor: ^Cursor, viewport: ^Viewport, buffer: Buffer)
 	}
 }
 
-editor_move_left :: proc(buffer: Buffer, cursor: ^Cursor) {
-	line_length := line_length(buffer, cursor.y)
+editor_move_left :: proc(buf: buffer.Buffer, cursor: ^Cursor) {
+	line_length := buffer.line_length(buf, cursor.y)
 	if cursor.x > line_length {
 		return
 	}
 	move_left(cursor)
 }
 
-editor_move_right :: proc(buffer: Buffer, cursor: ^Cursor, viewport: Viewport) {
-	line_length := saturating_sub(line_length(buffer, cursor.y), 1, 0)
+editor_move_right :: proc(buf: buffer.Buffer, cursor: ^Cursor, viewport: Viewport) {
+	line_length := saturating_sub(buffer.line_length(buf, cursor.y), 1, 0)
 	x := cursor.x
 	if x > line_length {
 		return
@@ -99,17 +101,37 @@ editor_move_right :: proc(buffer: Buffer, cursor: ^Cursor, viewport: Viewport) {
 	move_right(cursor, viewport)
 }
 
-editor_backspace :: proc(cursor: ^Cursor, buffer: ^Buffer) {
+editor_backspace :: proc(cursor: ^Cursor, buf: ^buffer.Buffer) {
 	line := cursor.y
 	log.debug(line)
-	if is_line_empty(buffer^, line) {
-		remove_line(buffer, line)
+	if buffer.is_line_empty(buf^, line) {
+		buffer.remove_line(buf, line)
 		move_up(cursor)
 	} else {
-		if cursor.y > buffer_length(buffer^) {
+		if cursor.y > buffer.buffer_length(buf^) {
 			return
 		}
-		delete_char(&buffer[cursor.y], cursor^)
+		remove_rune(buf, cursor^)
 		move_left(cursor)
 	}
+}
+
+editor_should_move_right :: proc(event: Event) -> bool {
+	#partial switch e in event {
+	case todin.Event:
+		#partial switch event in e {
+		case todin.Key:
+			if !event.control && event.keyname == 'l' {
+				return true
+			}
+		case todin.ArrowKey:
+			#partial switch event {
+			case .right:
+				return true
+			case:
+				return false
+			}
+		}
+	}
+	return false
 }

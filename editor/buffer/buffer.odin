@@ -1,4 +1,4 @@
-package editor
+package buffer
 
 import "core:log"
 import "core:os"
@@ -72,16 +72,16 @@ append_line :: proc(buffer: ^Buffer, #any_int index: i32) {
 	inject_at(buffer, cast(int)index, Line{})
 }
 
-append_rune_to_buffer :: proc(buffer: ^Buffer, cursor: Cursor, key: rune) {
-	offset := cursor.y
+append_rune :: proc(buffer: ^Buffer, y, x: i32, key: rune) {
+	offset := y
 	if offset > saturating_sub(buffer_length(buffer^), 1, 0) {
 		panic("attempting to write to unallocated line")
 	}
-	inject_at(&buffer[offset], cast(int)cursor.x, Cell{0, 0, key})
+	inject_at(&buffer[offset], cast(int)x, Cell{0, 0, key})
 }
 
-delete_char :: proc(line: ^Line, cursor: Cursor) {
-	x := saturating_sub(cursor.x, 1, 0)
+delete_char :: proc(line: ^Line, x: i32) {
+	x := saturating_sub(x, 1, 0)
 	offset := x
 	if len(line) <= 0 || x >= cast(i32)len(line) {
 		return
@@ -140,4 +140,11 @@ line_to_string :: proc(line: Line) -> string {
 		bytes[i] = byte(cell.datum)
 	}
 	return string(bytes)
+}
+
+saturating_sub :: proc(val, amount, min: $T) -> T {
+	if val > 0 && val - amount > min {
+		return val - amount
+	}
+	return min
 }

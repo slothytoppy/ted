@@ -1,6 +1,7 @@
 package editor
 
 import "../todin"
+import "buffer"
 import "core:flags"
 import "core:log"
 import "core:mem"
@@ -16,12 +17,28 @@ EditorMode :: enum {
 	command,
 }
 
+Pos :: distinct [2]i32
+
+Pane :: struct {
+	viewport: Viewport,
+	pos:      Pos,
+}
+
 Editor :: struct {
+	/* new
+	buffers:      [dynamic]Buffer,
+	panes:        map[uint]Pane,
+	*/
 	current_file: string,
-	mode:         EditorMode,
-	buffer:       Buffer,
+	buffer:       buffer.Buffer,
 	cursor:       Cursor,
 	viewport:     Viewport,
+	// global editor wide
+	mode:         EditorMode,
+	fv:           struct {
+		should_render: bool,
+		file_viewer:   FileViewer,
+	},
 	command_line: CommandLine,
 }
 
@@ -51,13 +68,17 @@ init :: proc() -> (editor: Editor, log_file: os.Handle) {
 	}
 	editor.viewport.max_y, editor.viewport.max_x =
 		todin.get_max_cols() - (STATUS_LINE_HEIGHT + COMMAND_LINE_HEIGHT), todin.get_max_rows()
-	editor.buffer = init_buffer(arg_info.file)
+	editor.buffer = buffer.init_buffer(arg_info.file)
 	todin.init()
 	todin.enter_alternate_screen()
 	set_status_line_position(editor.viewport.max_y)
 	set_command_line_position(&editor.command_line, editor.viewport.max_y + 1)
 	editor.current_file = arg_info.file
-	editor.cursor.y = cast(i32)arg_info.position
+	if cast(i32)arg_info.position < buffer.buffer_length(editor.buffer) {
+		editor.cursor.y = cast(i32)arg_info.position
+	} else {
+		// should it just be the max lines count?
+	}
 	renderable: Renderable = {
 		current_file = editor.current_file,
 		cursor       = editor.cursor,
@@ -77,6 +98,7 @@ deinit :: proc() {
 	todin.deinit()
 }
 
+@(require_results)
 update :: proc(editor: ^Editor, event: Event) -> Event {
 	todin_event: todin.Event = todin.Nothing{}
 	switch e in event {
@@ -89,27 +111,15 @@ update :: proc(editor: ^Editor, event: Event) -> Event {
 			editor.viewport.max_y, editor.viewport.max_x = todin.get_max_cursor_pos()
 			editor.viewport.max_y -= STATUS_LINE_HEIGHT + COMMAND_LINE_HEIGHT
 		case todin.ArrowKey:
-			dir: CursorEvent
-			switch event {
-			case .up:
-				dir = .up
-			case .down:
-				dir = .down
-			case .left:
-				dir = .left
-			case .right:
-				dir = .right
-			}
-			editor_move(dir, editor.buffer, &editor.cursor, &editor.viewport)
 			todin_event = event
 			return todin_event
 		}
 	}
 	switch editor.mode {
-	case .insert:
-		return insert_mode(editor, event)
 	case .normal:
 		return normal_mode(editor, event)
+	case .insert:
+		return insert_mode(editor, event)
 	case .command:
 		return command_mode(editor, event)
 	}
@@ -132,7 +142,7 @@ run :: proc(editor: ^Editor) {
 	loop: for {
 		if todin.poll() {
 			input_event: Event = todin.read()
-			render_event := update(editor, input_event)
+			event := update(editor, input_event)
 			renderable: Renderable = {
 				current_file = editor.current_file,
 				cursor       = editor.cursor,
@@ -141,24 +151,43 @@ run :: proc(editor: ^Editor) {
 				command_line = editor.command_line,
 				buffer       = editor.buffer,
 			}
-			render(renderable)
-			#partial switch e in render_event {
-			/*
-			case todin.Event:
-				#partial switch event in e {
-				case todin.Key, todin.ArrowKey:
-				case todin.BackSpace:
-				case todin.Enter:
-				}
-        */
-			case Init:
+			#partial switch e in event {
 			case Quit:
 				break loop
 			}
-			//render(editor^, RenderScreen{})
-			// TODO: remove the need for todin.move() and do rendering where it can remember or not interfere with the tui's cursor
-			//render(renderable)
+			render(renderable)
 		}
 	}
 	deinit()
+}
+
+/* converts an Event into an easily used string*/
+event_to_string :: proc(event: Event) -> string {
+	switch e in event {
+	case Init:
+		return "Init"
+	case Quit:
+		return "Quit"
+	case todin.Event:
+		#partial switch event in e {
+		case todin.Key:
+			if event.control {
+				return todin.event_to_string(e)
+			}
+			if event.keyname == 'k' {
+				return "up"
+			}
+			if event.keyname == 'j' {
+				return "down"
+			}
+			if event.keyname == 'l' {
+				return "right"
+			}
+			if event.keyname == 'h' {
+				return "left"
+			}
+		}
+		return todin.event_to_string(e)
+	}
+	return ""
 }

@@ -1,33 +1,34 @@
 package editor
 
 import "../todin"
+import "buffer"
 import "core:fmt"
 import "core:log"
 
 normal_mode :: proc(editor: ^Editor, event: Event) -> Event {
-	event_to_string: string
+	event_string: string
+	event_string = event_to_string(event)
 	switch e in event {
 	case Init:
 	case todin.Event:
-		event_to_string = todin.event_to_string(e)
-		switch event_to_string {
+		switch event_string {
 		case "I":
 			editor.mode = .insert
 			log.info(editor.mode)
-		case "k":
+		case "up":
 			editor_move_up(editor.buffer, &editor.cursor, &editor.viewport)
-		case "j":
+		case "down":
 			editor_move_down(editor.buffer, &editor.cursor, &editor.viewport)
-		case "h":
+		case "left":
 			editor_move_left(editor.buffer, &editor.cursor)
-		case "l":
+		case "right":
 			editor_move_right(editor.buffer, &editor.cursor, editor.viewport)
 		case ":":
 			editor.mode = .command
 		case "^":
 			move_to_line_start(&editor.cursor, editor.viewport)
 		case "$":
-			length := saturating_sub(line_length(editor.buffer, editor.cursor.y), 1, 0)
+			length := saturating_sub(buffer.line_length(editor.buffer, editor.cursor.y), 1, 0)
 			move_to_line_end(&editor.cursor, editor.viewport, saturating_sub(length, 1, 0))
 		case "o":
 			unimplemented()
@@ -52,7 +53,7 @@ insert_mode :: proc(editor: ^Editor, event: Event) -> Event {
 	case todin.Event:
 		#partial switch event in e {
 		case todin.Enter:
-			append_line(&editor.buffer, editor.cursor.y)
+			buffer.append_line(&editor.buffer, editor.cursor.y)
 			move_to_next_line_start(&editor.cursor, editor.viewport)
 		case todin.BackSpace:
 			editor_backspace(&editor.cursor, &editor.buffer)
@@ -65,7 +66,7 @@ insert_mode :: proc(editor: ^Editor, event: Event) -> Event {
 				}
 				return nil
 			}
-			append_rune_to_buffer(&editor.buffer, editor.cursor, event.keyname)
+			append_rune(&editor.buffer, editor.cursor, event.keyname)
 			move_right(&editor.cursor, editor.viewport)
 			log.info(
 				"cursor:",
@@ -98,8 +99,8 @@ command_mode :: proc(editor: ^Editor, event: Event) -> Event {
 				case Quit:
 					return Quit{}
 				case EditFile:
-					buffer := read_file(command.file_name)
-					if buffer == nil {
+					buf := buffer.read_file(command.file_name)
+					if buf == nil {
 						write_error_to_command_line(
 							&editor.command_line,
 							fmt.tprintf("file %s does not exist", command.file_name),
@@ -107,15 +108,15 @@ command_mode :: proc(editor: ^Editor, event: Event) -> Event {
 						editor.mode = .command
 						return nil
 					}
-					delete_buffer(&editor.buffer)
+					buffer.delete_buffer(&editor.buffer)
 					editor.current_file = command.file_name
-					editor.buffer = buffer
+					editor.buffer = buf
 					log.info(editor.current_file)
 				case SaveAs:
-					write_buffer_to_file(editor.buffer, command.file_name)
+					buffer.write_buffer_to_file(editor.buffer, command.file_name)
 					delete(command.file_name)
 				case Save:
-					write_buffer_to_file(editor.buffer, editor.current_file)
+					buffer.write_buffer_to_file(editor.buffer, editor.current_file)
 				}
 			}
 		case todin.Key:

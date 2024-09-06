@@ -1,9 +1,11 @@
 package editor
 
-Motion :: Buffer
+import "buffer"
+
+Motion :: buffer.Buffer
 
 init_motion :: proc() -> (motion: Motion) {
-	append(&motion, Line{})
+	append(&motion, buffer.Line{})
 	return motion
 }
 
@@ -27,8 +29,8 @@ move_to_line_end :: proc(cursor: ^Cursor, viewport: Viewport, line_length: i32) 
 	cursor.x = line_length
 }
 
-editor_remove_line_and_move_up :: proc(cursor: ^Cursor, buffer: ^Buffer) {
+editor_remove_line_and_move_up :: proc(cursor: ^Cursor, buf: ^buffer.Buffer) {
 	line := saturating_sub(cursor.y, 1, 0)
-	remove_line(buffer, line)
+	buffer.remove_line(buf, line)
 	move_up(cursor)
 }

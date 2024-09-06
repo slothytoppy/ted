@@ -1,12 +1,13 @@
 package editor
 
 import "../todin"
+import "buffer"
 import "core:log"
 import "core:slice"
 import "core:strconv"
 
 render_buffer_line :: proc(
-	line: Line,
+	line: buffer.Line,
 	viewport: Viewport,
 	#any_int tab_width: i32,
 	cursor: Cursor = {},
@@ -70,7 +71,7 @@ format_line_num :: proc(#any_int line_num: int) -> string {
 	return string(s[:])
 }
 
-render_buffer_with_scroll :: proc(buff: Buffer, viewport: Viewport) {
+render_buffer_with_scroll :: proc(buff: buffer.Buffer, viewport: Viewport) {
 	todin.clear_screen()
 	todin.reset_cursor()
 	tab_width := 4
@@ -90,7 +91,7 @@ render_buffer_with_scroll :: proc(buff: Buffer, viewport: Viewport) {
 Renderable :: struct {
 	current_file: string,
 	cursor:       Cursor,
-	buffer:       Buffer,
+	buffer:       buffer.Buffer,
 	viewport:     Viewport,
 	mode:         EditorMode,
 	command_line: CommandLine,
@@ -117,11 +118,12 @@ render :: proc(renderable: Renderable) {
 	)
 	if renderable.mode == .command {
 		print_command_line(renderable.command_line)
+	} else {
+		y, x :=
+			saturating_add(renderable.cursor.y, 1, renderable.viewport.max_y),
+			saturating_add(renderable.cursor.x, 1, renderable.viewport.max_x - 6)
+		todin.move(y, x + 6)
+		log.debug(y, x)
 	}
-	y, x :=
-		saturating_add(renderable.cursor.y, 1, renderable.viewport.max_y),
-		saturating_add(renderable.cursor.x, 1, renderable.viewport.max_x - 6)
-	todin.move(y, x + 6)
-	log.debug(y, x)
 	todin.refresh()
 }
