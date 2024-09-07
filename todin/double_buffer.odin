@@ -1,6 +1,7 @@
 package todin
 
 import "core:fmt"
+import "core:log"
 import "core:os"
 
 @(private)
@@ -55,11 +56,13 @@ remove_rune :: proc() {
 
 refresh :: proc() {
 	if _buffer.dirty {
+		cell_amount: int
 		os.write_string(os.stdin, "\e[H")
 		_buffer.dirty = false
 		for line in _buffer.data {
 			for &cell, i in line {
 				if cell.dirty {
+					cell_amount += 1
 					if cast(i32)i > GLOBAL_WINDOW_SIZE.rows {
 						move_to_start_of_next_line()
 					}
@@ -68,9 +71,9 @@ refresh :: proc() {
 				}
 			}
 			os.write_string(os.stdin, "\e[1E")
-			delete(line)
 		}
 		fmt.printf("\e[%d;%dH", _buffer.pos.y, _buffer.pos.x)
+		log.info("amount drawn:", cell_amount)
 	}
 }
 

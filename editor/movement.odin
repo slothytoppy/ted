@@ -95,7 +95,7 @@ editor_move_left :: proc(buf: buffer.Buffer, cursor: ^Cursor) {
 editor_move_right :: proc(buf: buffer.Buffer, cursor: ^Cursor, viewport: Viewport) {
 	line_length := saturating_sub(buffer.line_length(buf, cursor.y), 1, 0)
 	x := cursor.x
-	if x > line_length {
+	if x >= line_length {
 		return
 	}
 	move_right(cursor, viewport)
@@ -105,8 +105,7 @@ editor_backspace :: proc(cursor: ^Cursor, buf: ^buffer.Buffer) {
 	line := cursor.y
 	log.debug(line)
 	if buffer.is_line_empty(buf^, line) {
-		buffer.remove_line(buf, line)
-		move_up(cursor)
+		return
 	} else {
 		if cursor.y > buffer.buffer_length(buf^) {
 			return

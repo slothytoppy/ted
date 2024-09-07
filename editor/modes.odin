@@ -6,45 +6,26 @@ import "core:fmt"
 import "core:log"
 
 normal_mode :: proc(editor: ^Editor, event: Event) -> Event {
-	event_string: string
-	event_string = event_to_string(event)
+	//event_string := event_to_string(event)
 	switch e in event {
 	case Init:
-	case todin.Event:
-		switch event_string {
-		case "I":
-			editor.mode = .insert
-			log.info(editor.mode)
-		case "up":
-			editor_move_up(editor.buffer, &editor.cursor, &editor.viewport)
-		case "down":
-			editor_move_down(editor.buffer, &editor.cursor, &editor.viewport)
-		case "left":
-			editor_move_left(editor.buffer, &editor.cursor)
-		case "right":
-			editor_move_right(editor.buffer, &editor.cursor, editor.viewport)
-		case ":":
-			editor.mode = .command
-		case "^":
-			move_to_line_start(&editor.cursor, editor.viewport)
-		case "$":
-			length := saturating_sub(buffer.line_length(editor.buffer, editor.cursor.y), 1, 0)
-			move_to_line_end(&editor.cursor, editor.viewport, saturating_sub(length, 1, 0))
-		case "o":
-			unimplemented()
-		case "x":
-			editor_backspace(&editor.cursor, &editor.buffer)
-		case "d":
-		// no queue system so this is kinda bad since in vim its `dd` and not just `d`
-		//	editor_remove_line_and_move_up(&editor.cursor, &editor.buffer)
-		case "backspace":
-			editor_move_left(editor.buffer, &editor.cursor)
-		case "-":
-		}
 	case Quit:
-		return Quit{}
+	case todin.Event:
+		#partial switch event in e {
+		case todin.Key:
+			if !event.control {
+				if event.keyname == ':' {
+					editor.mode = .command
+				}
+				if event.keyname == '-' {
+
+				}
+				motion_append_rune(event.keyname)
+			}
+		}
 	}
-	return nil
+	check_motion(editor)
+	return event
 }
 
 insert_mode :: proc(editor: ^Editor, event: Event) -> Event {

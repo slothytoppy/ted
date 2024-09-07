@@ -2,6 +2,7 @@ package buffer
 
 import "core:log"
 import "core:os"
+import "core:testing"
 import "core:unicode/utf8"
 
 Cell :: struct {
@@ -14,8 +15,8 @@ Line :: [dynamic]Cell
 Buffer :: [dynamic]Line
 
 init_buffer :: proc {
-	init_buffer_from_file,
-	init_buffer_from_bytes,
+	read_file_from_string,
+	read_file_from_data,
 }
 
 read_file :: proc {
@@ -23,34 +24,23 @@ read_file :: proc {
 	read_file_from_data,
 }
 
-init_buffer_from_file :: proc(file: string) -> (buffer: Buffer) {
-	data, err := os.read_entire_file(file)
-	if err == false {
-		log.warn("failed to read", file)
-		return
-	}
-	buffer = init_buffer_from_bytes(data)
-	defer delete(data)
-	log.info(data, buffer)
-	return buffer
-}
-
-init_buffer_from_bytes :: read_file_from_data
-
 init_buffer_with_empty_lines :: proc(#any_int lines: i32) -> (buffer: Buffer) {
 	inject_at(&buffer, cast(int)lines, Line{})
 	return buffer
 }
 
+@(require_results)
 read_file_from_string :: proc(file: string) -> (buffer: Buffer) {
 	data, err := os.read_entire_file_from_filename(file)
 	if err == false {
 		log.info("file does not exist")
 		return {}
 	}
+	defer delete(data)
 	return read_file_from_data(data)
 }
 
+@(require_results)
 read_file_from_data :: proc(data: []byte) -> (buffer: Buffer) {
 	line, col: int
 	append(&buffer, Line{})
@@ -72,10 +62,18 @@ append_line :: proc(buffer: ^Buffer, #any_int index: i32) {
 	inject_at(buffer, cast(int)index, Line{})
 }
 
+append_string :: proc(buffer: ^Buffer, y, x: i32, str: string) {
+	offset := x
+	for s in str {
+		append_rune(buffer, y, offset, s)
+		offset += 1
+	}
+}
+
 append_rune :: proc(buffer: ^Buffer, y, x: i32, key: rune) {
 	offset := y
-	if offset > saturating_sub(buffer_length(buffer^), 1, 0) {
-		panic("attempting to write to unallocated line")
+	if offset >= saturating_sub(buffer_length(buffer^), 1, 0) {
+		append_line(buffer, offset + 1)
 	}
 	inject_at(&buffer[offset], cast(int)x, Cell{0, 0, key})
 }
@@ -91,7 +89,7 @@ delete_char :: proc(line: ^Line, x: i32) {
 }
 
 delete_buffer :: proc(buffer: ^Buffer) {
-	delete(buffer[:])
+	clear(buffer)
 }
 
 delete_line :: proc(line: ^Line) {
@@ -135,11 +133,11 @@ is_line_empty :: proc(buffer: Buffer, #any_int line: i32) -> bool {
 }
 
 line_to_string :: proc(line: Line) -> string {
-	bytes := make([]byte, len(line))
-	for cell, i in line {
-		bytes[i] = byte(cell.datum)
+	bytes: [dynamic]byte
+	for cell in line {
+		append(&bytes, byte(cell.datum))
 	}
-	return string(bytes)
+	return string(bytes[:])
 }
 
 saturating_sub :: proc(val, amount, min: $T) -> T {
@@ -147,4 +145,39 @@ saturating_sub :: proc(val, amount, min: $T) -> T {
 		return val - amount
 	}
 	return min
+}
+
+@(test)
+init_buffer_test :: proc(t: ^testing.T) {
+	file_name := "test_file"
+	fd, err := os.open(file_name, os.O_CREATE | os.O_RDONLY, 0644)
+	defer {
+		os.close(fd)
+		os.remove(file_name)
+	}
+	if err != nil {
+		return
+	}
+	buffer := init_buffer(file_name)
+	defer delete_buffer(&buffer)
+	assert(len(buffer) == 0)
+}
+
+@(test)
+remove_buffer_test :: proc(t: ^testing.T) {
+	buffer: Buffer
+	append_rune(&buffer, 10, 1, 'r')
+	delete_buffer(&buffer)
+	assert(len(buffer) == 0)
+}
+
+@(test)
+line_to_string_test :: proc(t: ^testing.T) {
+	buffer: Buffer
+	defer delete_buffer(&buffer)
+	append_string(&buffer, 0, 0, "hello")
+	str := line_to_string(buffer[0])
+	log.info("STR:", str)
+	log.info(buffer[0])
+	assert(str == "hello")
 }
