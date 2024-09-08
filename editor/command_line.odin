@@ -81,7 +81,7 @@ print_command_line :: proc(cli: CommandLine) {
 	for cell in cli.data {
 		append(&tmp, byte(cell.datum))
 	}
-	todin.print(string(tmp[:]))
+	//	todin.print(string(tmp[:]))
 	log.debug(string(tmp[:]))
 	todin.move_right()
 }

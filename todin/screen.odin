@@ -15,28 +15,14 @@ leave_alternate_screen :: proc() {
 	os.write_string(os.stdin, "\e[?1049l")
 }
 
-clear_screen :: proc() {
-	clear(&_buffer.data)
-	os.write_string(os.stdin, "\e[2J")
-}
-
-delete_line :: proc() {
-	for _ in _buffer.data[_buffer.pos.y] {
-		delch()
-	}
-	//os.write_string(os.stdin, "\e[2K")
-}
-
-move_print :: proc(y, x: int, args: ..any) {
-	move(y, x)
-	print(..args)
-}
-
-print :: proc(args: ..any) {
-	append_string(fmt.tprint(..args, sep = ""))
+print :: proc(arg: rune) {
+	fmt.print(arg)
 }
 
 delch :: proc() {
-	remove_rune()
-	//os.write_string(os.stdin, "\e[1P")
+	os.write_string(os.stdin, "\e[1P")
+}
+
+clear_screen :: proc() {
+	os.write_string(os.stdin, "\e[J")
 }

@@ -55,6 +55,7 @@ write_status_line :: proc(
 	todin.move(STATUS_LINE_POSITION, 0)
 	file_name := shorten_file_name(file_name)
 	defer delete(file_name)
+	/*
 	todin.print(
 		editor_mode_to_str(mode),
 		" ",
@@ -62,4 +63,5 @@ write_status_line :: proc(
 		" ",
 		fmt.tprint(cursor.y + scroll_amount, ":", cursor.x, sep = ""),
 	)
+  */
 }

@@ -29,7 +29,7 @@ render_buffer_line :: proc(
 		case '\t':
 			// TODO: make this configurable
 			for _ in 0 ..< tab_width {
-				todin.print(" ")
+				todin.print(' ')
 			}
 		case:
 			todin.print(rune(cell.datum))
@@ -82,7 +82,7 @@ render_buffer_with_scroll :: proc(buff: buffer.Buffer, viewport: Viewport) {
 		}
 		line_num = format_line_num(line_idx)
 		defer delete(line_num)
-		todin.print(line_num)
+		//todin.print(line_num)
 		render_buffer_line(buff[line_idx], viewport, tab_width, Cursor{x = cast(i32)len(line_num)})
 		todin.move_to_start_of_next_line()
 	}
@@ -97,7 +97,23 @@ RenderBuffer :: struct {
 }
 
 @(private = "file")
+_width := 0
+@(private = "file")
+_height := 0
+
+@(private = "file")
 render_buffer: [2]RenderBuffer
+
+init_render_buffers :: proc(#any_int width, height: int) {
+	_width = width
+	_height = height
+	render_buffer[0] = RenderBuffer {
+		cells = make([dynamic]RenderCell, width * height),
+	}
+	render_buffer[1] = RenderBuffer {
+		cells = make([dynamic]RenderCell, width * height),
+	}
+}
 
 Renderable :: struct {
 	current_file: string,
@@ -109,23 +125,49 @@ Renderable :: struct {
 }
 
 render :: proc(renderable: Renderable) {
-	render_buffer_with_scroll(renderable.buffer, renderable.viewport)
-	write_status_line(
-		renderable.mode,
-		renderable.current_file,
-		renderable.cursor,
-		renderable.viewport.scroll,
-	)
-	if renderable.mode == .command {
-		print_command_line(renderable.command_line)
-	} else {
-		y, x :=
-			saturating_add(renderable.cursor.y, 1, renderable.viewport.max_y),
-			saturating_add(renderable.cursor.x, 1, renderable.viewport.max_x - 6)
-		todin.move(y, x + 6)
-		log.debug(y, x)
+	log.info("RENDERED")
+	curr_buff := render_buffer[0]
+	viewport := renderable.viewport
+	idx := 0
+	for line in viewport.scroll ..< viewport.max_y {
+		if line > cast(i32)len(renderable.buffer) - 1 {
+			break
+		}
+		for cell in renderable.buffer[line] {
+			curr_buff.cells[idx].datum = cell.datum
+			idx += 1
+		}
 	}
-	refresh(renderable)
+	//log.info(curr_buff)
+	diffs := get_diffs()
+	slice.swap(render_buffer[:], 1, 0)
+	//log.info(len(diffs))
+	//log.info(diffs)
+	for diff, i in diffs {
+		todin.move(diff.y, diff.x)
+		log.info(diff)
+		todin.print(diff.datum.datum)
+	}
+}
+
+Changed :: struct {
+	datum: RenderCell,
+	x:     int,
+	y:     int,
+}
+
+get_diffs :: proc() -> [dynamic]Changed {
+	changed_cells: [dynamic]Changed
+	for cell, i in render_buffer[0].cells {
+		y := i / _width
+		x := i % _width
+		prev_cell := render_buffer[1].cells[i]
+		if cell != prev_cell {
+			append(&changed_cells, Changed{cell, x, y})
+		}
+	}
+	log.info(changed_cells)
+	return changed_cells
 }
 
 refresh :: proc(renderable: Renderable) {

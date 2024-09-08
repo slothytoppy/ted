@@ -72,9 +72,14 @@ init :: proc() -> (editor: Editor, log_file: os.Handle) {
 			os.exit(1)
 		}
 	}
-	editor.viewport.max_y, editor.viewport.max_x =
-		todin.get_max_cols() - (STATUS_LINE_HEIGHT + COMMAND_LINE_HEIGHT), todin.get_max_rows()
+
+	width := todin.get_max_cols()
+	height := todin.get_max_rows()
+	editor.viewport.max_y = height - (STATUS_LINE_HEIGHT + COMMAND_LINE_HEIGHT)
+	editor.viewport.max_x = width
+
 	editor.buffer = buffer.init_buffer(arg_info.file)
+
 	todin.init()
 	todin.enter_alternate_screen()
 	set_status_line_position(editor.viewport.max_y)
@@ -82,9 +87,8 @@ init :: proc() -> (editor: Editor, log_file: os.Handle) {
 	editor.current_file = arg_info.file
 	if cast(i32)arg_info.position < buffer.buffer_length(editor.buffer) {
 		editor.cursor.y = cast(i32)arg_info.position
-	} else {
-		// should it just be the max lines count?
 	}
+	init_render_buffers(width, height)
 	renderable: Renderable = {
 		current_file = editor.current_file,
 		cursor       = editor.cursor,
@@ -93,9 +97,10 @@ init :: proc() -> (editor: Editor, log_file: os.Handle) {
 		command_line = editor.command_line,
 		buffer       = editor.buffer,
 	}
-	render(renderable)
+	/*
+     render(renderable)
 	todin.reset_cursor()
-	todin.refresh()
+  */
 	return editor, arg_info.log_file
 }
 

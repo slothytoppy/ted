@@ -1,55 +1,35 @@
 package todin
 
 import "core:fmt"
+import "core:os"
 
 reset_cursor :: proc() {
-	_buffer.pos = {0, 0}
-	//os.write_string(os.stdin, "\e[H")
+	os.write_string(os.stdin, "\e[H")
 }
 
 move :: proc(#any_int y, x: i32) {
-	_buffer.pos = {
-		y = y,
-		x = x,
-	}
+	fmt.printf("\e[%d;%dH", y + 1, x)
 }
 
 move_up :: proc() {
-	if _buffer.pos.y > 0 {
-		_buffer.pos.y -= 1
-	}
-	//fmt.printf("\e[1A")
+	fmt.printf("\e[1A")
 }
 
 move_down :: proc() {
-	if _buffer.pos.y < GLOBAL_WINDOW_SIZE.cols - 1 {
-		line_amount := cast(i32)len(_buffer.data) - 1
-		if line_amount < _buffer.pos.y {
-			inject_at(&_buffer.data, cast(int)_buffer.pos.y, Line{})
-		}
-		_buffer.pos.y += 1
-	}
-	//fmt.printf("\e[1B")
+	fmt.printf("\e[1B")
 }
 
 move_right :: proc() {
-	if _buffer.pos.x < GLOBAL_WINDOW_SIZE.rows {
-		_buffer.pos.x += 1
-	}
-	//fmt.printf("\e[1C")
+	fmt.printf("\e[1C")
 }
 
 move_left :: proc() {
-	if _buffer.pos.x > 0 {
-		_buffer.pos.x -= 1
-	}
-	//fmt.printf("\e[1D")
+	fmt.printf("\e[1D")
 }
 
 move_to_start_of_next_line :: proc() {
 	move_down()
-	_buffer.pos.x = 0
-	//fmt.printf("\e[1E")
+	fmt.printf("\e[1E")
 }
 
 scroll_up :: proc() {
@@ -67,6 +47,7 @@ save_cursor_pos :: proc() {
 restore_cursor_pos :: proc() {
 	fmt.printf("\e[8")
 }
+/*
 
 get_current_cols :: proc() -> i32 {
 	columns, _ := get_cursor_pos()
@@ -79,7 +60,6 @@ get_current_rows :: proc() -> i32 {
 }
 
 get_cursor_pos :: proc() -> (cols, rows: int) {
-	/*
 	buf: [20]byte
 	os.write_string(os.stdin, "\e[6n")
 	os.read(os.stdin, buf[:])
@@ -104,11 +84,9 @@ get_cursor_pos :: proc() -> (cols, rows: int) {
 			break
 		}
 	}
-  */
-	cols = cast(int)_buffer.pos.y
-	rows = cast(int)_buffer.pos.x
 	return cols, rows
 }
+  */
 
 get_max_cols :: proc() -> i32 {
 	return GLOBAL_WINDOW_SIZE.cols
