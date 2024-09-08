@@ -88,6 +88,17 @@ render_buffer_with_scroll :: proc(buff: buffer.Buffer, viewport: Viewport) {
 	}
 }
 
+RenderCell :: struct {
+	datum: rune,
+}
+
+RenderBuffer :: struct {
+	cells: [dynamic]RenderCell,
+}
+
+@(private = "file")
+render_buffer: [2]RenderBuffer
+
 Renderable :: struct {
 	current_file: string,
 	cursor:       Cursor,
@@ -95,17 +106,6 @@ Renderable :: struct {
 	viewport:     Viewport,
 	mode:         EditorMode,
 	command_line: CommandLine,
-}
-
-LineNum :: distinct int
-Screen :: struct {}
-Scroll :: struct {}
-
-RenderEvent :: union {
-	Cursor,
-	LineNum,
-	Screen,
-	Scroll,
 }
 
 render :: proc(renderable: Renderable) {
@@ -125,5 +125,8 @@ render :: proc(renderable: Renderable) {
 		todin.move(y, x + 6)
 		log.debug(y, x)
 	}
-	todin.refresh()
+	refresh(renderable)
+}
+
+refresh :: proc(renderable: Renderable) {
 }

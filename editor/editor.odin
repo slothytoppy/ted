@@ -17,28 +17,34 @@ EditorMode :: enum {
 	command,
 }
 
-Pos :: distinct [2]i32
+BufferId :: distinct u8
+
+BufferList :: map[BufferId]buffer.Buffer
 
 Pane :: struct {
-	viewport: Viewport,
-	pos:      Pos,
+	viewport:    Viewport,
+	status_line: StatusLine,
+	pos:         Pos,
+	buffer:      ^buffer.Buffer,
+}
+
+Pos :: struct {
+	start, end: [2]i32,
+}
+
+StatusLine :: struct {
+	width:       u8,
+	lines_count: u32,
 }
 
 Editor :: struct {
-	/* new
-	buffers:      [dynamic]Buffer,
-	panes:        map[uint]Pane,
-	*/
+	list:         BufferList,
 	current_file: string,
 	buffer:       buffer.Buffer,
 	cursor:       Cursor,
 	viewport:     Viewport,
 	// global editor wide
 	mode:         EditorMode,
-	fv:           struct {
-		should_render: bool,
-		file_viewer:   FileViewer,
-	},
 	command_line: CommandLine,
 }
 
@@ -110,9 +116,6 @@ update :: proc(editor: ^Editor, event: Event) -> Event {
 		case todin.Resize:
 			editor.viewport.max_y, editor.viewport.max_x = todin.get_max_cursor_pos()
 			editor.viewport.max_y -= STATUS_LINE_HEIGHT + COMMAND_LINE_HEIGHT
-		case todin.ArrowKey:
-			todin_event = event
-			return todin_event
 		}
 	}
 	switch editor.mode {
@@ -190,4 +193,17 @@ event_to_string :: proc(event: Event) -> string {
 		return todin.event_to_string(e)
 	}
 	return ""
+}
+
+move_dir :: proc(cursor: ^Cursor, viewport: Viewport, arrow: todin.ArrowKey) {
+	switch arrow {
+	case .up:
+		move_up(cursor)
+	case .down:
+		move_down(cursor, viewport)
+	case .left:
+		move_left(cursor)
+	case .right:
+		move_right(cursor, viewport)
+	}
 }

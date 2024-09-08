@@ -50,7 +50,7 @@ check_motion :: proc(editor: ^Editor) {
 		move_to_line_start(&editor.cursor, editor.viewport)
 		found_motion = true
 	case "$":
-		length := buffer.line_length(editor.buffer, editor.cursor.y)
+		length := buffer.buffer_line_length(editor.buffer, editor.cursor.y)
 		move_to_line_end(&editor.cursor, editor.viewport, saturating_sub(length, 1, 0))
 		found_motion = true
 	case "x":

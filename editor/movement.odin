@@ -13,8 +13,11 @@ CursorEvent :: enum {
 }
 
 editor_move_up :: proc(buf: buffer.Buffer, cursor: ^Cursor, viewport: ^Viewport) {
-	line := saturating_sub(cursor.y, 1, 0)
-	line_len := buffer.line_length(buf, line)
+	if cursor.y == 0 {
+		return
+	}
+	line := cursor.y - 1
+	line_len := buffer.buffer_line_length(buf, line)
 	x := cursor.x
 	log.debug(line_len, line, cursor.y)
 	if x >= line_len {
@@ -31,18 +34,19 @@ editor_move_up :: proc(buf: buffer.Buffer, cursor: ^Cursor, viewport: ^Viewport)
 }
 
 editor_move_down :: proc(buf: buffer.Buffer, cursor: ^Cursor, viewport: ^Viewport) {
-	line := saturating_add(
-		cursor.y,
-		1,
-		min(viewport.max_y, cast(i32)saturating_sub(len(buf), 1, 0)),
-	)
-	line_len := buffer.line_length(buf, line)
+	if cursor.y + 1 > viewport.max_y || cursor.y + 1 > buffer.buffer_length(buf) {
+		return
+	}
+	line := cursor.y + 1
+	line_len := buffer.buffer_line_length(buf, line)
+
 	if line_len < 0 {
 		return
 	}
+
 	x := cursor.x
 	log.debug(line_len, line, cursor.y)
-	if x > line_len {
+	if x >= line_len {
 		cursor.virtual_x = x
 		cursor.x = line_len
 	} else {
@@ -85,7 +89,7 @@ editor_scroll_down :: proc(cursor: ^Cursor, viewport: ^Viewport, buf: buffer.Buf
 }
 
 editor_move_left :: proc(buf: buffer.Buffer, cursor: ^Cursor) {
-	line_length := buffer.line_length(buf, cursor.y)
+	line_length := buffer.buffer_line_length(buf, cursor.y)
 	if cursor.x > line_length {
 		return
 	}
@@ -93,7 +97,7 @@ editor_move_left :: proc(buf: buffer.Buffer, cursor: ^Cursor) {
 }
 
 editor_move_right :: proc(buf: buffer.Buffer, cursor: ^Cursor, viewport: Viewport) {
-	line_length := saturating_sub(buffer.line_length(buf, cursor.y), 1, 0)
+	line_length := saturating_sub(buffer.buffer_line_length(buf, cursor.y), 1, 0)
 	x := cursor.x
 	if x >= line_length {
 		return

@@ -7,7 +7,6 @@ import "core:os"
 @(private)
 Cell :: struct {
 	datum: rune,
-	dirty: bool,
 }
 
 @(private)
@@ -28,12 +27,15 @@ Buffer :: struct {
 @(private)
 _buffer: Buffer
 
+@(private)
+_buffers: [2]Buffer
+
 append_rune :: proc(r: rune) {
 	_buffer.dirty = true
 	if _buffer.pos.y > cast(i32)len(_buffer.data) - 1 {
 		inject_at(&_buffer.data, cast(int)_buffer.pos.y, Line{})
 	}
-	append(&_buffer.data[_buffer.pos.y], Cell{datum = r, dirty = true})
+	append(&_buffer.data[_buffer.pos.y], Cell{datum = r})
 	_buffer.pos.x += 1
 }
 
@@ -51,29 +53,6 @@ remove_rune :: proc() {
 	ordered_remove(&_buffer.data[_buffer.pos.y], cast(int)_buffer.pos.x)
 	if _buffer.pos.x - 1 > 0 {
 		_buffer.pos.x -= 1
-	}
-}
-
-refresh :: proc() {
-	if _buffer.dirty {
-		cell_amount: int
-		os.write_string(os.stdin, "\e[H")
-		_buffer.dirty = false
-		for line in _buffer.data {
-			for &cell, i in line {
-				if cell.dirty {
-					cell_amount += 1
-					if cast(i32)i > GLOBAL_WINDOW_SIZE.rows {
-						move_to_start_of_next_line()
-					}
-					os.write_rune(os.stdin, cell.datum)
-					cell.dirty = false
-				}
-			}
-			os.write_string(os.stdin, "\e[1E")
-		}
-		fmt.printf("\e[%d;%dH", _buffer.pos.y, _buffer.pos.x)
-		log.info("amount drawn:", cell_amount)
 	}
 }
 

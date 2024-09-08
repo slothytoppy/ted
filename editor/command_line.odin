@@ -30,22 +30,18 @@ CliEvent :: union {
 ErrorMsg :: string
 
 CommandLine :: struct {
-	data:     buffer.Buffer,
-	error:    buffer.Buffer,
+	data:     buffer.Line,
+	error:    buffer.Line,
 	cursor:   Cursor,
 	position: i32,
 }
 
-// this is kinda meh
 set_command_line_position :: proc(cli: ^CommandLine, #any_int line: i32) {
 	cli.position = line
 }
 
 write_rune_to_command_line :: proc(cli: ^CommandLine, r: rune) {
-	if len(cli.data) <= 0 {
-		append(&cli.data, buffer.Line{})
-	}
-	append_rune(&cli.data, cli.cursor, r)
+	append(&cli.data, buffer.Cell{r})
 	cli.cursor.x += 1
 }
 
@@ -57,7 +53,7 @@ write_string_to_command_line :: proc(cli: ^CommandLine, s: string) {
 
 write_error_to_command_line :: proc(cli: ^CommandLine, s: string) {
 	for r in s {
-		append(&cli.error[0], buffer.Cell{0, 0, r})
+		append(&cli.data, buffer.Cell{r})
 	}
 	cli.cursor.x = 0
 }
@@ -66,26 +62,24 @@ remove_char_from_command_line :: proc(cli: ^CommandLine) {
 	if len(cli.data) <= 0 {
 		return
 	}
-	remove_rune(&cli.data, cli.cursor)
 	cli.cursor.x = saturating_sub(cli.cursor.x, 1, 0)
+	ordered_remove(&cli.data, cli.cursor.x)
 }
 
 print_command_line :: proc(cli: CommandLine) {
-	if len(cli.data) <= 0 || len(cli.data[0]) <= 0 {
+	if len(cli.data) <= 0 {
 		return
 	}
 	if len(cli.error) > 0 {
-		render_buffer_with_scroll(cli.error, {max_y = cli.position, max_x = 1000})
+		render_buffer_line(cli.error, {max_y = cli.position, max_x = 1000}, 4)
 		return
 	}
 	todin.move(cli.position + 1, 0)
 	todin.print(':')
 	tmp: [dynamic]byte
 	defer delete(tmp)
-	for line in cli.data {
-		for cell in line {
-			append(&tmp, byte(cell.datum))
-		}
+	for cell in cli.data {
+		append(&tmp, byte(cell.datum))
 	}
 	todin.print(string(tmp[:]))
 	log.debug(string(tmp[:]))
@@ -94,18 +88,18 @@ print_command_line :: proc(cli: CommandLine) {
 
 clear_command_line :: proc(cli: ^CommandLine) {
 	if len(cli.data) >= 1 {
-		clear(&cli.data[0])
+		clear(&cli.data)
 		cli.cursor.x = 0
 	}
 }
 
 @(require_results)
 check_command :: proc(cli: ^CommandLine) -> (event: CliEvent) {
-	if len(cli.data) <= 0 || len(cli.data[0]) <= 0 {
+	if len(cli.data) <= 0 {
 		return
 	}
 
-	line := buffer.line_to_string(cli.data[0])
+	line := buffer.line_to_string(cli.data)
 	defer delete(line)
 	defer clear_command_line(cli)
 

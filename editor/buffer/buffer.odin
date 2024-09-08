@@ -6,8 +6,7 @@ import "core:testing"
 import "core:unicode/utf8"
 
 Cell :: struct {
-	fg, bg: int,
-	datum:  rune,
+	datum: rune,
 }
 
 Line :: [dynamic]Cell
@@ -47,7 +46,7 @@ read_file_from_data :: proc(data: []byte) -> (buffer: Buffer) {
 	runes := utf8.string_to_runes(string(data[:]))
 	defer delete(runes)
 	for b in runes {
-		append(&buffer[line], Cell{0, 0, b})
+		append(&buffer[line], Cell{b})
 		col += 1
 		if b == '\n' {
 			append(&buffer, Line{})
@@ -75,7 +74,7 @@ append_rune :: proc(buffer: ^Buffer, y, x: i32, key: rune) {
 	if offset >= saturating_sub(buffer_length(buffer^), 1, 0) {
 		append_line(buffer, offset + 1)
 	}
-	inject_at(&buffer[offset], cast(int)x, Cell{0, 0, key})
+	inject_at(&buffer[offset], cast(int)x, Cell{key})
 }
 
 delete_char :: proc(line: ^Line, x: i32) {
@@ -117,12 +116,16 @@ buffer_length :: proc(buffer: Buffer) -> i32 {
 	return cast(i32)len(buffer)
 }
 
-line_length :: proc(buffer: Buffer, #any_int line: i32) -> i32 {
+buffer_line_length :: proc(buffer: Buffer, #any_int line: i32) -> i32 {
 	idx := line
 	if idx >= saturating_sub(buffer_length(buffer), 1, 0) {
 		return -1
 	}
 	return saturating_sub(cast(i32)len(buffer[idx]), 1, 0)
+}
+
+line_length :: proc(line: Line) -> i32 {
+	return saturating_sub(cast(i32)len(line), 1, 0)
 }
 
 is_line_empty :: proc(buffer: Buffer, #any_int line: i32) -> bool {

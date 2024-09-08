@@ -12,6 +12,8 @@ normal_mode :: proc(editor: ^Editor, event: Event) -> Event {
 	case Quit:
 	case todin.Event:
 		#partial switch event in e {
+		case todin.ArrowKey:
+			move_dir(&editor.cursor, editor.viewport, event)
 		case todin.Key:
 			if !event.control {
 				if event.keyname == ':' {
@@ -21,10 +23,10 @@ normal_mode :: proc(editor: ^Editor, event: Event) -> Event {
 
 				}
 				motion_append_rune(event.keyname)
+				check_motion(editor)
 			}
 		}
 	}
-	check_motion(editor)
 	return event
 }
 
