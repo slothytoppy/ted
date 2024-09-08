@@ -6,6 +6,7 @@ import "core:flags"
 import "core:log"
 import "core:mem"
 import "core:os"
+import "core:time"
 
 Viewport :: struct {
 	max_x, max_y, scroll: i32,
@@ -57,37 +58,20 @@ Event :: union {
 	Quit,
 }
 
-init :: proc() -> (editor: Editor, log_file: os.Handle) {
-	arg_info: Args_Info
-	error := parse_cli_arguments(&arg_info)
-	switch e in error {
-	case EditorError:
-		switch e {
-		case .file_doesnt_exist, .no_file, .none:
-		}
-	case flags.Error:
-		switch error in e {
-		case flags.Parse_Error, flags.Help_Request, flags.Open_File_Error, flags.Validation_Error:
-			print_error(error)
-			os.exit(1)
-		}
-	}
-
+init :: proc(file: string) -> (editor: Editor) {
 	width := todin.get_max_cols()
 	height := todin.get_max_rows()
+	log.info(width, height)
 	editor.viewport.max_y = height - (STATUS_LINE_HEIGHT + COMMAND_LINE_HEIGHT)
 	editor.viewport.max_x = width
 
-	editor.buffer = buffer.init_buffer(arg_info.file)
+	editor.buffer = buffer.init_buffer(file)
 
 	todin.init()
 	todin.enter_alternate_screen()
 	set_status_line_position(editor.viewport.max_y)
 	set_command_line_position(&editor.command_line, editor.viewport.max_y + 1)
-	editor.current_file = arg_info.file
-	if cast(i32)arg_info.position < buffer.buffer_length(editor.buffer) {
-		editor.cursor.y = cast(i32)arg_info.position
-	}
+	editor.current_file = file
 	init_render_buffers(width, height)
 	renderable: Renderable = {
 		current_file = editor.current_file,
@@ -97,11 +81,10 @@ init :: proc() -> (editor: Editor, log_file: os.Handle) {
 		command_line = editor.command_line,
 		buffer       = editor.buffer,
 	}
-	/*
-     render(renderable)
+	/*render(renderable)
 	todin.reset_cursor()
   */
-	return editor, arg_info.log_file
+	return editor
 }
 
 deinit :: proc() {
@@ -134,11 +117,15 @@ update :: proc(editor: ^Editor, event: Event) -> Event {
 	return nil
 }
 
-run :: proc(editor: ^Editor) {
+run :: proc(file_name: string) {
 	log_file: os.Handle
-	editor^, log_file = init()
-	context.logger = init_logger_from_fd(log_file)
+	editor := init(file_name)
 	log.info(editor.cursor)
+
+	target_fps: f64 = 60.0
+	target_frame_time: time.Duration = time.Millisecond * 1000 / cast(time.Duration)(target_fps)
+	last_time := time.now()
+	delta_time: time.Duration
 
 	when ODIN_DEBUG {
 		track: mem.Tracking_Allocator
@@ -148,9 +135,13 @@ run :: proc(editor: ^Editor) {
 	}
 
 	loop: for {
+		current_time := time.now()
+		delta_time = time.diff(last_time, current_time)
+		last_time = current_time
+
 		if todin.poll() {
 			input_event: Event = todin.read()
-			event := update(editor, input_event)
+			event := update(&editor, input_event)
 			renderable: Renderable = {
 				current_file = editor.current_file,
 				cursor       = editor.cursor,
@@ -164,6 +155,12 @@ run :: proc(editor: ^Editor) {
 				break loop
 			}
 			render(renderable)
+		}
+
+		frame_time := time.diff(last_time, current_time)
+		if frame_time < target_frame_time {
+			//log.info(target_frame_time - frame_time)
+			time.sleep(target_frame_time - frame_time)
 		}
 	}
 	deinit()

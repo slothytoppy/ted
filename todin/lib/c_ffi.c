@@ -11,7 +11,7 @@
 #include <unistd.h>
 
 typedef struct WINDOW_SIZE {
-  int lines, cols;
+  int cols, rows;
 } WINDOW_SIZE;
 
 struct termios original_termios;
@@ -83,7 +83,7 @@ __attribute__((constructor)) void init_resize_handler() {
 
 WINDOW_SIZE get_win_size() {
   ioctl(0, TIOCGWINSZ, &WIN_SIZE);
-  WINDOW_SIZE wz = {.lines = WIN_SIZE.ws_row, .cols = WIN_SIZE.ws_col};
+  WINDOW_SIZE wz = {.rows = WIN_SIZE.ws_row, .cols = WIN_SIZE.ws_col};
   return wz;
 }
 

@@ -2,13 +2,14 @@ package todin
 
 import "core:fmt"
 import "core:os"
+import "core:strconv"
 
 reset_cursor :: proc() {
 	os.write_string(os.stdin, "\e[H")
 }
 
 move :: proc(#any_int y, x: i32) {
-	fmt.printf("\e[%d;%dH", y + 1, x)
+	fmt.printf("\e[%d;%dH", y + 1, x + 1)
 }
 
 move_up :: proc() {
@@ -47,7 +48,6 @@ save_cursor_pos :: proc() {
 restore_cursor_pos :: proc() {
 	fmt.printf("\e[8")
 }
-/*
 
 get_current_cols :: proc() -> i32 {
 	columns, _ := get_cursor_pos()
@@ -86,7 +86,14 @@ get_cursor_pos :: proc() -> (cols, rows: int) {
 	}
 	return cols, rows
 }
-  */
+
+hide_cursor :: proc() {
+	fmt.print("\e[?25l")
+}
+
+unhide_cursor :: proc() {
+	fmt.print("\e[?25h")
+}
 
 get_max_cols :: proc() -> i32 {
 	return GLOBAL_WINDOW_SIZE.cols

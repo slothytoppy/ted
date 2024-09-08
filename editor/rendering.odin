@@ -71,23 +71,6 @@ format_line_num :: proc(#any_int line_num: int) -> string {
 	return string(s[:])
 }
 
-render_buffer_with_scroll :: proc(buff: buffer.Buffer, viewport: Viewport) {
-	todin.clear_screen()
-	todin.reset_cursor()
-	tab_width := 4
-	line_num: string
-	for line_idx, i in viewport.scroll ..= viewport.max_y + viewport.scroll - 1 {
-		if line_idx >= saturating_sub(cast(i32)len(buff), 1, 0) || cast(i32)i >= viewport.max_y {
-			break
-		}
-		line_num = format_line_num(line_idx)
-		defer delete(line_num)
-		//todin.print(line_num)
-		render_buffer_line(buff[line_idx], viewport, tab_width, Cursor{x = cast(i32)len(line_num)})
-		todin.move_to_start_of_next_line()
-	}
-}
-
 RenderCell :: struct {
 	datum: rune,
 }
@@ -125,29 +108,58 @@ Renderable :: struct {
 }
 
 render :: proc(renderable: Renderable) {
-	log.info("RENDERED")
+	if len(renderable.buffer) == 0 {
+		return
+	}
+	todin.hide_cursor()
+
 	curr_buff := render_buffer[0]
 	viewport := renderable.viewport
 	idx := 0
+
 	for line in viewport.scroll ..< viewport.max_y {
-		if line > cast(i32)len(renderable.buffer) - 1 {
+		if line > saturating_sub(cast(i32)len(renderable.buffer), 1, 0) {
 			break
 		}
-		for cell in renderable.buffer[line] {
+
+		content := renderable.buffer[line]
+		line_len := len(content)
+
+		for cell in content {
+			if idx >= len(curr_buff.cells) - 1 {
+				break
+			}
 			curr_buff.cells[idx].datum = cell.datum
 			idx += 1
 		}
+
+		if line_len < _width {
+			for i in line_len ..< _width {
+				if idx >= len(curr_buff.cells) - 1 {
+					break
+				}
+				curr_buff.cells[idx].datum = ' '
+				idx += 1
+			}
+		}
 	}
-	//log.info(curr_buff)
+
 	diffs := get_diffs()
 	slice.swap(render_buffer[:], 1, 0)
-	//log.info(len(diffs))
-	//log.info(diffs)
 	for diff, i in diffs {
 		todin.move(diff.y, diff.x)
-		log.info(diff)
 		todin.print(diff.datum.datum)
+
+		log.debug(diff.y + 1, diff.x + 1, diff.datum.datum)
 	}
+	write_status_line(
+		renderable.mode,
+		renderable.current_file,
+		renderable.cursor,
+		renderable.viewport.scroll,
+	)
+	todin.move(renderable.cursor.y, renderable.cursor.x)
+	todin.unhide_cursor()
 }
 
 Changed :: struct {
@@ -166,7 +178,7 @@ get_diffs :: proc() -> [dynamic]Changed {
 			append(&changed_cells, Changed{cell, x, y})
 		}
 	}
-	log.info(changed_cells)
+	log.debug(changed_cells)
 	return changed_cells
 }
 

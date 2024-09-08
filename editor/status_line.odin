@@ -2,6 +2,8 @@ package editor
 
 import "../todin"
 import "core:fmt"
+import "core:log"
+import "core:strings"
 
 STATUS_LINE_HEIGHT :: 1
 
@@ -55,13 +57,16 @@ write_status_line :: proc(
 	todin.move(STATUS_LINE_POSITION, 0)
 	file_name := shorten_file_name(file_name)
 	defer delete(file_name)
-	/*
-	todin.print(
-		editor_mode_to_str(mode),
-		" ",
-		file_name,
-		" ",
-		fmt.tprint(cursor.y + scroll_amount, ":", cursor.x, sep = ""),
+	msg := strings.concatenate(
+		{
+			editor_mode_to_str(mode),
+			" ",
+			file_name,
+			" ",
+			fmt.tprint(cursor.y + scroll_amount, ":", cursor.x, sep = ""),
+		},
 	)
-  */
+	for s in msg {
+		todin.print(s)
+	}
 }
