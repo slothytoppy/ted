@@ -70,20 +70,17 @@ print_command_line :: proc(cli: CommandLine) {
 	if len(cli.data) <= 0 {
 		return
 	}
+	/*
 	if len(cli.error) > 0 {
 		render_buffer_line(cli.error, {max_y = cli.position, max_x = 1000}, 4)
 		return
 	}
-	todin.move(cli.position + 1, 0)
+  */
+	todin.move(cli.position, 0)
 	todin.print(':')
-	tmp: [dynamic]byte
-	defer delete(tmp)
 	for cell in cli.data {
-		append(&tmp, byte(cell.datum))
+		todin.print(cell.datum)
 	}
-	//	todin.print(string(tmp[:]))
-	log.debug(string(tmp[:]))
-	todin.move_right()
 }
 
 clear_command_line :: proc(cli: ^CommandLine) {

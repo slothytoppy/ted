@@ -2,9 +2,11 @@ package editor
 
 import "../todin"
 import "buffer"
+import "core:fmt"
 import "core:log"
 import "core:slice"
 import "core:strconv"
+import "core:strings"
 
 render_buffer_line :: proc(
 	line: buffer.Line,
@@ -116,11 +118,10 @@ render :: proc(renderable: Renderable) {
 	curr_buff := render_buffer[0]
 	viewport := renderable.viewport
 	idx := 0
-
-	for line in viewport.scroll ..< viewport.max_y {
-		if line > saturating_sub(cast(i32)len(renderable.buffer), 1, 0) {
-			break
-		}
+	buffer_len := saturating_sub(buffer.buffer_length(renderable.buffer), 1, 0)
+	height := viewport.max_y
+	renderable_amount := min(buffer_len, height)
+	for line in viewport.scroll ..< renderable_amount {
 
 		content := renderable.buffer[line]
 		line_len := len(content)
@@ -144,21 +145,60 @@ render :: proc(renderable: Renderable) {
 		}
 	}
 
+	// place holder for proper line numbers
+	format_line_len := 0
+	num := len(renderable.buffer)
+	for {
+		num /= 10
+		log.infof("num:%d", num)
+		format_line_len += 1
+		if num <= 0 {
+			break
+		}
+	}
+
+	status_line := write_status_line(
+		renderable.mode,
+		renderable.current_file,
+		renderable.cursor,
+		viewport.scroll,
+	)
+	defer delete(status_line)
+	status_line_start := _width * cast(int)viewport.max_y
+	for s, i in status_line {
+		curr_buff.cells[status_line_start + i] = RenderCell{s}
+		log.info(status_line_start, i)
+	}
+
 	diffs := get_diffs()
+	defer delete(diffs)
 	slice.swap(render_buffer[:], 1, 0)
-	for diff, i in diffs {
-		todin.move(diff.y, diff.x)
+
+	for diff in diffs {
+		todin.move(diff.y, 0)
+		line_num := format_line_num(diff.y)
+
+		if diff.y < get_status_line_position() {
+			defer delete(line_num)
+			for s in line_num {
+				todin.print(s)
+			}
+			todin.move(diff.y, diff.x + len(line_num))
+		} else {
+			todin.move(diff.y, diff.x)
+		}
+
 		todin.print(diff.datum.datum)
 
 		log.debug(diff.y + 1, diff.x + 1, diff.datum.datum)
 	}
-	write_status_line(
-		renderable.mode,
-		renderable.current_file,
-		renderable.cursor,
-		renderable.viewport.scroll,
-	)
-	todin.move(renderable.cursor.y, renderable.cursor.x)
+
+
+	// TODO: render command line
+
+	x := saturating_add(renderable.cursor.x, min(cast(i32)format_line_len + 4, 6), viewport.max_x)
+	todin.move(renderable.cursor.y, x)
+	log.info(x)
 	todin.unhide_cursor()
 }
 
@@ -180,7 +220,4 @@ get_diffs :: proc() -> [dynamic]Changed {
 	}
 	log.debug(changed_cells)
 	return changed_cells
-}
-
-refresh :: proc(renderable: Renderable) {
 }

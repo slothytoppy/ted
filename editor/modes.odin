@@ -73,12 +73,10 @@ command_mode :: proc(editor: ^Editor, event: Event) -> Event {
 		case todin.BackSpace:
 			remove_char_from_command_line(&editor.command_line)
 		case todin.Enter:
-			switch commands in check_command(&editor.command_line) {
-			case ErrorMsg:
-				write_error_to_command_line(&editor.command_line, commands)
+			#partial switch commands in check_command(&editor.command_line) {
 			case Commands:
 				editor.mode = .normal
-				switch command in commands {
+				#partial switch command in commands {
 				case Quit:
 					return Quit{}
 				case EditFile:
@@ -110,6 +108,7 @@ command_mode :: proc(editor: ^Editor, event: Event) -> Event {
 			}
 			write_rune_to_command_line(&editor.command_line, event.keyname)
 		case todin.EscapeKey:
+			editor.mode = .normal
 		}
 	case Init:
 		break

@@ -26,3 +26,7 @@ delch :: proc() {
 clear_screen :: proc() {
 	os.write_string(os.stdin, "\e[J")
 }
+
+clear_line :: proc() {
+	os.write_string(os.stdin, "\e[2K")
+}

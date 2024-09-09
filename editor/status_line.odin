@@ -14,6 +14,10 @@ set_status_line_position :: proc(#any_int line: int) {
 	STATUS_LINE_POSITION = line
 }
 
+get_status_line_position :: proc() -> int {
+	return STATUS_LINE_POSITION
+}
+
 @(private = "file")
 editor_mode_to_str :: proc(mode: EditorMode) -> string {
 	switch mode {
@@ -53,8 +57,7 @@ write_status_line :: proc(
 	file_name: string,
 	cursor: Cursor,
 	#any_int scroll_amount: i32,
-) {
-	todin.move(STATUS_LINE_POSITION, 0)
+) -> string {
 	file_name := shorten_file_name(file_name)
 	defer delete(file_name)
 	msg := strings.concatenate(
@@ -66,7 +69,5 @@ write_status_line :: proc(
 			fmt.tprint(cursor.y + scroll_amount, ":", cursor.x, sep = ""),
 		},
 	)
-	for s in msg {
-		todin.print(s)
-	}
+	return msg
 }
