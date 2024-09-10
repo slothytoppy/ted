@@ -8,15 +8,11 @@ import "core:slice"
 import "core:strconv"
 import "core:strings"
 
+@(private = "file")
 format_line_num :: proc(#any_int line_num: int) -> string {
 	s := make([dynamic]byte, 6)
-	for &s, i in s {
-		s = 32
-	}
+	slice.fill(s[:], 32)
 
-	//assert(line_num < 99999, "line number too big pepehands")
-
-	//s: [6]byte = 32
 	line_str := strconv.itoa(s[:], line_num)
 	line_len := len(line_str)
 
@@ -36,16 +32,17 @@ format_line_num :: proc(#any_int line_num: int) -> string {
 		right -= 1
 		left -= 1
 	}
-	//slice.fill(s[:len(line_str)], 32)
 
 	log.debug(s[:])
 	return string(s[:])
 }
 
+@(private = "file")
 RenderCell :: struct {
 	datum: rune,
 }
 
+@(private = "file")
 RenderBuffer :: struct {
 	cells: [dynamic]RenderCell,
 }
@@ -121,10 +118,24 @@ render :: proc(renderable: Renderable) {
 		viewport.scroll,
 	)
 	defer delete(status_line)
+
+	command_line := print_command_line(renderable.command_line)
+	defer delete(command_line)
+
 	status_line_start := _width * cast(int)viewport.max_y
+	command_line_start := _width * cast(int)viewport.max_y + _width
+
+	if len(status_line) >= _width || len(command_line) >= _width {
+		return
+	}
+
+	curr_buff.cells[command_line_start] = RenderCell{':'}
+	for s, i in command_line {
+		curr_buff.cells[command_line_start + i + 1] = RenderCell{s}
+	}
 	for s, i in status_line {
 		curr_buff.cells[status_line_start + i] = RenderCell{s}
-		log.info(status_line_start, i)
+		log.debug(status_line_start, i)
 	}
 
 	diffs := get_diffs()
@@ -134,15 +145,15 @@ render :: proc(renderable: Renderable) {
 
 	render_diffs(diffs, viewport)
 
-
 	// TODO: render command line
 
 	x := saturating_add(renderable.cursor.x, 6, viewport.max_x)
 	todin.move(renderable.cursor.y, x)
-	log.info(x)
+	log.debug(x)
 	todin.unhide_cursor()
 }
 
+@(private = "file")
 render_diffs :: proc(diffs: [dynamic]Changed, viewport: Viewport) {
 	for diff in diffs {
 		todin.move(diff.y, 0)
@@ -150,7 +161,6 @@ render_diffs :: proc(diffs: [dynamic]Changed, viewport: Viewport) {
 		defer delete(line_num)
 
 		if diff.y < cast(int)viewport.max_y {
-			defer delete(line_num)
 			for s in line_num {
 				todin.print(s)
 			}

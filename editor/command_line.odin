@@ -66,21 +66,10 @@ remove_char_from_command_line :: proc(cli: ^CommandLine) {
 	ordered_remove(&cli.data, cli.cursor.x)
 }
 
-print_command_line :: proc(cli: CommandLine) {
-	if len(cli.data) <= 0 {
-		return
-	}
-	/*
-	if len(cli.error) > 0 {
-		render_buffer_line(cli.error, {max_y = cli.position, max_x = 1000}, 4)
-		return
-	}
-  */
-	todin.move(cli.position, 0)
-	todin.print(':')
-	for cell in cli.data {
-		todin.print(cell.datum)
-	}
+print_command_line :: proc(cli: CommandLine) -> string {
+	msg: [dynamic]byte
+	append(&msg, buffer.line_to_string(cli.data))
+	return string(msg[:])
 }
 
 clear_command_line :: proc(cli: ^CommandLine) {
