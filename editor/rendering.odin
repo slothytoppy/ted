@@ -8,37 +8,6 @@ import "core:slice"
 import "core:strconv"
 import "core:strings"
 
-render_buffer_line :: proc(
-	line: buffer.Line,
-	viewport: Viewport,
-	#any_int tab_width: i32,
-	cursor: Cursor = {},
-) {
-	for _ in 0 ..< cursor.y {
-		todin.move_to_start_of_next_line()
-	}
-	for _ in 0 ..< cursor.x {
-		todin.move_right()
-	}
-	for cell, idx in line {
-		if cast(i32)idx > viewport.max_x - cursor.x {
-			break
-		}
-		switch cell.datum {
-		// for not printing newlines, it interferes with rendering the actual text
-		case '\n':
-			break
-		case '\t':
-			// TODO: make this configurable
-			for _ in 0 ..< tab_width {
-				todin.print(' ')
-			}
-		case:
-			todin.print(rune(cell.datum))
-		}
-	}
-}
-
 format_line_num :: proc(#any_int line_num: int) -> string {
 	s := make([dynamic]byte, 6)
 	for &s, i in s {
@@ -145,18 +114,6 @@ render :: proc(renderable: Renderable) {
 		}
 	}
 
-	// place holder for proper line numbers
-	format_line_len := 0
-	num := len(renderable.buffer)
-	for {
-		num /= 10
-		log.infof("num:%d", num)
-		format_line_len += 1
-		if num <= 0 {
-			break
-		}
-	}
-
 	status_line := write_status_line(
 		renderable.mode,
 		renderable.current_file,
@@ -173,12 +130,26 @@ render :: proc(renderable: Renderable) {
 	diffs := get_diffs()
 	defer delete(diffs)
 	slice.swap(render_buffer[:], 1, 0)
+	slice.fill(render_buffer[0].cells[status_line_start:], RenderCell{' '})
 
+	render_diffs(diffs, viewport)
+
+
+	// TODO: render command line
+
+	x := saturating_add(renderable.cursor.x, 6, viewport.max_x)
+	todin.move(renderable.cursor.y, x)
+	log.info(x)
+	todin.unhide_cursor()
+}
+
+render_diffs :: proc(diffs: [dynamic]Changed, viewport: Viewport) {
 	for diff in diffs {
 		todin.move(diff.y, 0)
 		line_num := format_line_num(diff.y)
+		defer delete(line_num)
 
-		if diff.y < get_status_line_position() {
+		if diff.y < cast(int)viewport.max_y {
 			defer delete(line_num)
 			for s in line_num {
 				todin.print(s)
@@ -192,14 +163,6 @@ render :: proc(renderable: Renderable) {
 
 		log.debug(diff.y + 1, diff.x + 1, diff.datum.datum)
 	}
-
-
-	// TODO: render command line
-
-	x := saturating_add(renderable.cursor.x, min(cast(i32)format_line_len + 4, 6), viewport.max_x)
-	todin.move(renderable.cursor.y, x)
-	log.info(x)
-	todin.unhide_cursor()
 }
 
 Changed :: struct {
