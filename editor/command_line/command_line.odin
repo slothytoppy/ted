@@ -1,7 +1,8 @@
-package editor
+package command_line
 
-import "../todin"
-import "buffer"
+import "../../todin"
+import "../buffer"
+import "../cursor"
 import "core:log"
 import "core:strings"
 
@@ -14,6 +15,8 @@ SaveAs :: struct {
 EditFile :: struct {
 	file_name: string,
 }
+
+Quit :: struct {}
 
 Commands :: union {
 	Quit,
@@ -32,7 +35,7 @@ ErrorMsg :: string
 CommandLine :: struct {
 	data:     buffer.Line,
 	error:    buffer.Line,
-	cursor:   Cursor,
+	cursor:   cursor.Cursor,
 	position: i32,
 }
 
@@ -62,7 +65,9 @@ remove_char_from_command_line :: proc(cli: ^CommandLine) {
 	if len(cli.data) <= 0 {
 		return
 	}
-	cli.cursor.x = saturating_sub(cli.cursor.x, 1, 0)
+	if cli.cursor.x > 0 {
+		cli.cursor.x -= 1
+	}
 	ordered_remove(&cli.data, cli.cursor.x)
 }
 

@@ -1,9 +1,14 @@
-package editor
+package status_line
 
-import "../todin"
+import "../cursor"
 import "core:fmt"
 import "core:log"
 import "core:strings"
+
+StatusLine :: struct {
+	width:       u8,
+	lines_count: u32,
+}
 
 STATUS_LINE_HEIGHT :: 1
 
@@ -16,6 +21,12 @@ set_status_line_position :: proc(#any_int line: int) {
 
 get_status_line_position :: proc() -> int {
 	return STATUS_LINE_POSITION
+}
+
+EditorMode :: enum {
+	normal,
+	insert,
+	command,
 }
 
 @(private = "file")
@@ -55,7 +66,7 @@ shorten_file_name :: proc(file_name: string) -> string {
 write_status_line :: proc(
 	mode: EditorMode,
 	file_name: string,
-	cursor: Cursor,
+	cursor: cursor.Cursor,
 	#any_int scroll_amount: i32,
 ) -> string {
 	file_name := shorten_file_name(file_name)
