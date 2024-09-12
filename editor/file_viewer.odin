@@ -1,12 +1,14 @@
 package editor
 
 import "../todin"
+import "./cursor"
+import "./viewport"
 import "buffer"
 import "core:os"
 
 FileViewer :: struct {
 	data:   buffer.Buffer,
-	cursor: Cursor,
+	cursor: cursor.Cursor,
 }
 
 init_file_viewer :: read_dir
@@ -31,7 +33,7 @@ read_dir :: proc(dir: string) -> FileViewer {
 	return fv
 }
 
-update_file_viewer :: proc(fv: ^FileViewer, event: Event, viewport: Viewport) {
+update_file_viewer :: proc(fv: ^FileViewer, event: Event, viewport: viewport.Viewport) {
 	#partial switch e in event {
 	case todin.Event:
 		#partial switch event in e {
@@ -44,15 +46,15 @@ update_file_viewer :: proc(fv: ^FileViewer, event: Event, viewport: Viewport) {
 }
 
 @(private = "file")
-handle_file_viewer_movement :: proc(fv: ^FileViewer, event: Event, viewport: Viewport) {
+handle_file_viewer_movement :: proc(fv: ^FileViewer, event: Event, viewport: viewport.Viewport) {
 	switch event_to_string(event) {
 	case "up":
-		move_up(&fv.cursor)
+		cursor.move_up(&fv.cursor)
 	case "down":
-		move_down(&fv.cursor, viewport)
+		cursor.move_down(&fv.cursor, viewport)
 	case "right":
-		move_right(&fv.cursor, viewport)
+		cursor.move_right(&fv.cursor, viewport)
 	case "left":
-		move_left(&fv.cursor)
+		cursor.move_left(&fv.cursor)
 	}
 }

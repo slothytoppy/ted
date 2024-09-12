@@ -1,30 +1,25 @@
 package editor
 
 import "../todin"
+import "./command_line"
+import "./cursor"
+import "./renderer"
+import "./status_line"
 import "buffer"
 import "core:flags"
 import "core:log"
 import "core:mem"
 import "core:os"
 import "core:time"
-
-Viewport :: struct {
-	max_x, max_y, scroll: i32,
-}
-
-EditorMode :: enum {
-	normal,
-	insert,
-	command,
-}
+import "viewport"
 
 BufferId :: distinct u8
 
 BufferList :: map[BufferId]buffer.Buffer
 
 Pane :: struct {
-	viewport:    Viewport,
-	status_line: StatusLine,
+	viewport:    viewport.Viewport,
+	status_line: status_line.StatusLine,
 	pos:         Pos,
 	buffer:      ^buffer.Buffer,
 }
@@ -33,20 +28,15 @@ Pos :: struct {
 	start, end: [2]i32,
 }
 
-StatusLine :: struct {
-	width:       u8,
-	lines_count: u32,
-}
-
 Editor :: struct {
 	list:         BufferList,
 	current_file: string,
 	buffer:       buffer.Buffer,
-	cursor:       Cursor,
-	viewport:     Viewport,
+	cursor:       cursor.Cursor,
+	viewport:     viewport.Viewport,
 	// global editor wide
-	mode:         EditorMode,
-	command_line: CommandLine,
+	mode:         status_line.EditorMode,
+	command_line: command_line.CommandLine,
 }
 
 Init :: struct {}
@@ -62,18 +52,19 @@ init :: proc(file: string) -> (editor: Editor) {
 	width := todin.get_max_cols()
 	height := todin.get_max_rows()
 	log.info(width, height)
-	editor.viewport.max_y = height - (STATUS_LINE_HEIGHT + COMMAND_LINE_HEIGHT)
+	editor.viewport.max_y =
+		height - (status_line.STATUS_LINE_HEIGHT + command_line.COMMAND_LINE_HEIGHT)
 	editor.viewport.max_x = width
 
 	editor.buffer = buffer.init_buffer(file)
 
 	todin.init()
 	todin.enter_alternate_screen()
-	set_status_line_position(editor.viewport.max_y)
-	set_command_line_position(&editor.command_line, editor.viewport.max_y + 1)
+	status_line.set_status_line_position(editor.viewport.max_y)
+	command_line.set_command_line_position(&editor.command_line, editor.viewport.max_y + 1)
 	editor.current_file = file
-	init_render_buffers(width, height)
-	renderable: Renderable = {
+	renderer.init_render_buffers(width, height)
+	renderable: renderer.Renderable = {
 		current_file = editor.current_file,
 		cursor       = editor.cursor,
 		viewport     = editor.viewport,
@@ -103,7 +94,8 @@ update :: proc(editor: ^Editor, event: Event) -> Event {
 		#partial switch event in e {
 		case todin.Resize:
 			editor.viewport.max_y, editor.viewport.max_x = todin.get_max_cursor_pos()
-			editor.viewport.max_y -= STATUS_LINE_HEIGHT + COMMAND_LINE_HEIGHT
+			editor.viewport.max_y -=
+				status_line.STATUS_LINE_HEIGHT + command_line.COMMAND_LINE_HEIGHT
 		}
 	}
 	switch editor.mode {
@@ -126,6 +118,15 @@ run :: proc(file_name: string) {
 	target_frame_time: time.Duration = time.Millisecond * 1000 / cast(time.Duration)(target_fps)
 	last_time := time.now()
 	delta_time: time.Duration
+	renderable: renderer.Renderable = {
+		current_file = editor.current_file,
+		cursor       = editor.cursor,
+		viewport     = editor.viewport,
+		mode         = editor.mode,
+		command_line = editor.command_line,
+		buffer       = editor.buffer,
+	}
+	renderer.render(renderable)
 
 	when ODIN_DEBUG {
 		track: mem.Tracking_Allocator
@@ -142,7 +143,7 @@ run :: proc(file_name: string) {
 		if todin.poll() {
 			input_event: Event = todin.read()
 			event := update(&editor, input_event)
-			renderable: Renderable = {
+			renderable: renderer.Renderable = {
 				current_file = editor.current_file,
 				cursor       = editor.cursor,
 				viewport     = editor.viewport,
@@ -154,7 +155,7 @@ run :: proc(file_name: string) {
 			case Quit:
 				break loop
 			}
-			render(renderable)
+			renderer.render(renderable)
 		}
 
 		frame_time := time.diff(last_time, current_time)
@@ -197,15 +198,20 @@ event_to_string :: proc(event: Event) -> string {
 	return ""
 }
 
-move_dir :: proc(cursor: ^Cursor, viewport: Viewport, arrow: todin.ArrowKey) {
+move_dir :: proc(
+	cur: ^cursor.Cursor,
+	viewport: ^viewport.Viewport,
+	arrow: todin.ArrowKey,
+	buffer: buffer.Buffer,
+) {
 	switch arrow {
 	case .up:
-		move_up(cursor)
+		editor_move_up(buffer, cur, viewport)
 	case .down:
-		move_down(cursor, viewport)
+		editor_move_down(buffer, cur, viewport)
 	case .left:
-		move_left(cursor)
+		editor_move_left(buffer, cur)
 	case .right:
-		move_right(cursor, viewport)
+		editor_move_right(buffer, cur, viewport^)
 	}
 }

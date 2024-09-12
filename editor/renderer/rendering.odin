@@ -32,50 +32,36 @@ Renderable :: struct {
 	command_line: command_line.CommandLine,
 }
 
-write_to_double_buffer :: proc(buff: []buffer.Line, double_buffer: ^RenderBuffer, idx := 0) {
-	idx := idx
-	for line in buff {
-		for cell in line {
-			if idx >= len(double_buffer.cells) - 1 {
-				break
-			}
-			switch cell.datum {
-			case '\t':
-				idx += 1
-			case '\n':
-			case:
-				double_buffer.cells[idx].datum = cell.datum
-				idx += 1
-			}
-		}
-		for i in len(line) ..= _width {
-			if idx >= len(double_buffer.cells) {
-				break
-			}
-			double_buffer.cells[idx].datum = ' '
-			idx += 1
-		}
-	}
-}
-
-render :: proc(renderable: Renderable) {
-	if len(renderable.buffer) == 0 {
-		return
-	}
-	todin.hide_cursor()
-	defer todin.unhide_cursor()
-
+pre_diff :: proc(renderable: Renderable, viewport: viewport.Viewport) -> RenderBuffer {
 	curr_buff := render_buffer[0]
 	viewport := renderable.viewport
 	idx := 0
 	buffer_len := saturating_sub(buffer.buffer_length(renderable.buffer), 1, 0)
 	height := viewport.max_y
 	renderable_amount := min(buffer_len, height)
-	write_to_double_buffer(
-		renderable.buffer[viewport.scroll:renderable_amount + viewport.scroll],
-		&curr_buff,
-		idx,
-	)
+	for line in renderable.buffer[viewport.scroll:renderable_amount + viewport.scroll] {
+		for cell in line {
+			if idx >= len(curr_buff.cells) - 1 {
+				break
+			}
+			switch cell.datum {
+			case '\t':
+				curr_buff.cells[idx].datum = ' '
+				idx += 1
+			case '\n':
+			case:
+				curr_buff.cells[idx].datum = cell.datum
+				idx += 1
+			}
+		}
+		for i in len(line) ..= _width {
+			if idx >= len(curr_buff.cells) {
+				break
+			}
+			curr_buff.cells[idx].datum = ' '
+			idx += 1
+		}
+	}
 
 	status_line := status_line.write_status_line(
 		renderable.mode,
@@ -98,14 +84,29 @@ render :: proc(renderable: Renderable) {
 			curr_buff.cells[command_line_start + i + 1] = RenderCell{s}
 		}
 	}
+	return curr_buff
+}
 
+post_diff :: proc(buf: RenderBuffer, viewport: viewport.Viewport) {
 	diffs := get_diffs()
 	defer delete(diffs)
 
 	slice.swap(render_buffer[:], 1, 0)
-	slice.fill(render_buffer[0].cells[status_line_start:], RenderCell{' '})
 
 	render_diffs(diffs, viewport)
+}
+
+render :: proc(renderable: Renderable) {
+	todin.hide_cursor()
+	defer todin.unhide_cursor()
+	if len(renderable.buffer) == 0 {
+		return
+	}
+	status_line_start := _width * cast(int)renderable.viewport.max_y
+	viewport := renderable.viewport
+	rendered := pre_diff(renderable, viewport)
+	post_diff(rendered, viewport)
+	slice.fill(render_buffer[0].cells[status_line_start:], RenderCell{' '})
 
 	x := renderable.cursor.x
 	if x + 6 < viewport.max_x {
@@ -129,9 +130,6 @@ render_diffs :: proc(diffs: [dynamic]Changed, viewport: viewport.Viewport) {
 		} else {
 			todin.move(diff.y, diff.x)
 		}
-
 		todin.print(diff.datum.datum)
-
-		log.debug(diff.y + 1, diff.x + 1, diff.datum.datum)
 	}
 }

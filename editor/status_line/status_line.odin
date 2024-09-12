@@ -80,5 +80,6 @@ write_status_line :: proc(
 			fmt.tprint(cursor.y + scroll_amount, ":", cursor.x, sep = ""),
 		},
 	)
+	log.info(msg)
 	return msg
 }

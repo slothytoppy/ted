@@ -1,5 +1,6 @@
 package editor
 
+import "./cursor"
 import "buffer"
 import "core:log"
 import "core:mem"
@@ -49,10 +50,10 @@ init_logger_from_fd :: proc(fd: os.Handle) -> log.Logger {
 	}
 }
 
-append_rune :: proc(buf: ^buffer.Buffer, cursor: Cursor, r: rune) {
+append_rune :: proc(buf: ^buffer.Buffer, cursor: cursor.Cursor, r: rune) {
 	buffer.append_rune(buf, cursor.y, cursor.x, r)
 }
 
-remove_rune :: proc(buf: ^buffer.Buffer, cursor: Cursor) {
+remove_rune :: proc(buf: ^buffer.Buffer, cursor: cursor.Cursor) {
 	buffer.delete_char(&buf[cursor.y], cursor.x)
 }
